@@ -1,0 +1,505 @@
+//
+// Created by Maxwell Babey on 10/24/22.
+//
+
+#include "../../libs/include/error.h"
+#include "../../libs/include/manager.h"
+#include "../../libs/include/util.h"
+#include "../include/server.h"
+#include "../include/setup.h"
+#include <arpa/inet.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+/**
+ * The number of connections which may be queued at once.
+ */
+#define MAX_TIMEOUTS_SERVER 3
+
+/**
+ * @author D'Arcy Smith
+ */
+static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
+
+static volatile bool connected; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
+
+/**
+ * open_server
+ * <p>
+ * Create a socket, bind the IP specified in server_settings to the socket, then listen on the socket.
+ * </p>
+ * @param set - server_settings *: pointer to the settings for this server
+ */
+void open_server(struct server_settings *set);
+
+/**
+ * await_connect
+ * <p>
+ * Await and accept client connections. If program is interrupted by the user while waiting, close the server.
+ * </p>
+ * @param set - server_settings *: pointer to the settings for this server
+ */
+void await_connect(struct server_settings *set);
+
+/**
+ * connect_to
+ * <p>
+ * Create and zero the received packet and sent packet structs. Set the timeout option on the socket.
+ * </p>
+ * @param set - the server settings
+ */
+void connect_to(struct server_settings *set);
+
+/**
+ * await_syn
+ * <p>
+ * Await a SYN message from a connecting client. Respond with a SYN/ACK.
+ * </p>
+ * @param set - the server settings
+ * @param send_packet - the packet struct to send
+ * @param recv_packet - the packet struct to receive
+ */
+void await_syn(struct server_settings *set, struct packet *send_packet);
+
+/**
+ * do_messaging.
+ * <p>
+ * Await a message from the connected client. If no message is received and a timeout occurs,
+ * resend the last-sent packet. If a timeout occurs too many times, drop the connection.
+ * </p>
+ * @param set - the server settings
+ * @param send_packet - the packet struct to send
+ * @param recv_packet - the packet struct to receive
+ */
+void do_messaging(struct server_settings *set,
+                  struct packet *send_packet,
+                  struct packet *recv_packet);
+
+/**
+ * modify_timeout
+ * <p>
+ * Change the timeout duration based on the number of timeouts that have occured.
+ * </p>
+ * @return
+ */
+uint8_t modify_timeout(uint8_t timeout_count);
+
+/**
+ * recv_message.
+ * <p>
+ * Load the bytes of the data buffer into the receive packet struct fields.
+ * </p>
+ * @param set - the server settings
+ * @param send_packet - the packet struct to send
+ * @param recv_packet - the packet struct to receive
+ */
+void recv_message(struct server_settings *set,
+                  struct packet *send_packet,
+                  struct packet *recv_packet,
+                  const uint8_t *data_buffer);
+
+/**
+ * process_message
+ * <p>
+ * Check the flags in the packet struct. Depending on the flags, respond accordingly.
+ * </p>
+ * @param set - the server settings
+ * @param send_packet - the packet struct to send
+ * @param recv_packet - the packet struct to receive
+ */
+void process_message(struct server_settings *set, struct packet *send_packet, struct packet *recv_packet);
+
+/**
+ * process_payload
+ * <p>
+ * Write the information in the payload to the output specified in the server settings.
+ * </p>
+ * @param set - the server settings
+ * @param recv_packet - the packet struct to receive
+ */
+void process_payload(struct server_settings *set, struct packet *recv_packet);
+
+/**
+ * create_resp
+ * <p>
+ * Zero the send packet. Set the flags and the sequence number.
+ * </p>
+ * @param flags - the flags to set in the send packet
+ * @param seq_num - the sequence number to set in the send packet
+ * @param send_packet - the packet struct to send
+ */
+void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num);
+
+/**
+ * send_resp
+ * <p>
+ * Send the send packet to the client as a response.
+ * </p>
+ * @param set - the server settings
+ * @param send_packet - the packet struct to send
+ */
+void send_resp(struct server_settings *set,
+               struct packet *send_packet);
+
+/**
+ * close_server
+ * <p>
+ * Free allocated memory. Close the server socket. Exit the program.
+ * </p>
+ * @param set - the server settings
+ * @param send_packet - the send packet
+ * @param recv_packet - the receive packet
+ */
+_Noreturn void close_server(struct server_settings *set, int exit_code);
+
+/**
+ * set_signal_handling
+ * @param sa
+ * @author D'Arcy Smith
+ */
+static void set_signal_handling(struct sigaction *sa);
+
+/**
+ * signal_handler
+ * @param sig
+ * @author D'Arcy Smith
+ */
+static void signal_handler(int sig);
+
+void run(int argc, char *argv[], struct server_settings *set)
+{
+    init_def_state(argc, argv, set);
+    open_server(set);
+    await_connect(set);
+}
+
+void open_server(struct server_settings *set)
+{
+    struct sockaddr_in server_addr;
+    
+    if ((set->server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        close_server(set, EXIT_FAILURE);
+    }
+    
+    server_addr.sin_family           = AF_INET;
+    server_addr.sin_port             = htons(set->server_port);
+    if ((server_addr.sin_addr.s_addr = inet_addr(set->server_ip)) == (in_addr_t) -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        close_server(set, EXIT_FAILURE);
+    }
+    
+    if (bind(set->server_fd, (struct sockaddr *) &server_addr, sizeof(struct sockaddr_in)) == -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        close_server(set, EXIT_FAILURE);
+    }
+    
+    printf("\nSERVER RUNNING ON: %s:%d\n\n", set->server_ip, set->server_port);
+}
+
+void await_connect(struct server_settings *set)
+{
+    struct sigaction sa;
+    
+    set_signal_handling(&sa);
+    running = 1;
+    
+    while (running)
+    {
+        connect_to(set);
+    }
+}
+
+void connect_to(struct server_settings *set)
+{
+    connected = false;
+    
+    struct packet *send_packet = NULL;
+    struct packet *recv_packet = NULL;
+    
+    send_packet = (struct packet *) s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__);
+    set->mem_manager->mm_add(set->mem_manager, send_packet);
+    recv_packet = (struct packet *) s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__);
+    set->mem_manager->mm_add(set->mem_manager, recv_packet);
+    
+    send_packet->seq_num = MAX_SEQ;
+    
+    set->client_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__);
+    set->mem_manager->mm_add(set->mem_manager, set->client_addr);
+    
+    await_syn(set, send_packet);
+    
+    do_messaging(set, send_packet, recv_packet);
+    
+    set->mem_manager->mm_free(set->mem_manager, send_packet);
+    set->mem_manager->mm_free(set->mem_manager, recv_packet);
+    set->mem_manager->mm_free(set->mem_manager, set->client_addr);
+}
+
+void await_syn(struct server_settings *set, struct packet *send_packet)
+{
+    printf("----- AWAITING CONNECTIONS -----\n\n");
+    
+    socklen_t sockaddr_in_size;
+    uint8_t   buffer[BUF_LEN];
+    
+    sockaddr_in_size = sizeof(struct sockaddr_in);
+    do
+    {
+        if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0,
+                      (struct sockaddr *) set->client_addr, &sockaddr_in_size)) == -1)
+        {
+            switch(errno)
+            {
+                case EINTR:
+                {
+                    close_server(set, EXIT_SUCCESS);
+                }
+                case EAGAIN:
+                {
+                    break;
+                }
+                default:
+                {
+                    fatal_errno(__FILE__, __func__, __LINE__, errno);
+                    close_server(set, EXIT_FAILURE);
+                }
+            }
+        }
+    } while (*buffer != FLAG_SYN);
+    
+    printf("Client connected from: %s\n\n", inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
+    
+    create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+    send_resp(set, send_packet);
+}
+
+void do_messaging(struct server_settings *set,
+                  struct packet *send_packet,
+                  struct packet *recv_packet)
+{
+    uint8_t   buffer[BUF_LEN];
+    socklen_t sockaddr_in_size;
+    ssize_t   bytes_recv;
+    uint8_t   timeout_count;
+
+    
+    timeout_count = 0;
+    sockaddr_in_size = sizeof(struct sockaddr_in);
+    do
+    {
+        printf("----- AWAITING MESSAGE -----\n\n");
+    
+        set->timeout->tv_sec = modify_timeout(timeout_count);
+        if (setsockopt(set->server_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) set->timeout, sizeof(struct timeval)) == -1)
+        {
+            fatal_errno(__FILE__, __func__, __LINE__, errno);
+            close_server(set, EXIT_FAILURE);
+        }
+        
+        memset(recv_packet, 0, sizeof(struct packet));
+        memset(buffer, 0, BUF_LEN);
+        if ((bytes_recv = recvfrom(set->server_fd, buffer, BUF_LEN, 0,
+                                   (struct sockaddr *) set->client_addr, &sockaddr_in_size)) == -1)
+        {
+            switch (errno)
+            {
+                case EINTR:
+                {
+                    close_server(set, EXIT_SUCCESS);
+                }
+                case EWOULDBLOCK:
+                {
+                    printf("Timeout occurred, timeouts remaining: %d\n\n", (MAX_TIMEOUTS_SERVER - (timeout_count + 1)));
+                    ++timeout_count;
+                    break;
+                }
+                default:
+                {
+                    fatal_errno(__FILE__, __func__, __LINE__, errno);
+                    close_server(set, EXIT_FAILURE);
+                }
+            }
+        }
+        
+        if (bytes_recv > 0)
+        {
+            printf("Message received: bytes: %ld\n\n", bytes_recv);
+            timeout_count = 0;
+            recv_message(set, send_packet, recv_packet, buffer);
+        }
+        
+    } while (timeout_count < MAX_TIMEOUTS_SERVER && *buffer != (FLAG_FIN | FLAG_ACK)); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+}
+
+uint8_t modify_timeout(uint8_t timeout_count)
+{
+    switch (timeout_count)
+    {
+        case 0:
+        {
+            return SERVER_TIMEOUT_SHORT;
+        }
+        case 1:
+        {
+            return SERVER_TIMEOUT_MED;
+        }
+        case 2:
+        {
+            return SERVER_TIMEOUT_LONG;
+        }
+        default:
+        {
+            return SERVER_TIMEOUT_SHORT;
+        }
+    }
+}
+
+void recv_message(struct server_settings *set,
+                  struct packet *send_packet,
+                  struct packet *recv_packet,
+                  const uint8_t *data_buffer)
+{
+    deserialize_packet(recv_packet, data_buffer);
+    if (errno == ENOTRECOVERABLE)
+    {
+        close_server(set, EXIT_FAILURE);
+    }
+    set->mem_manager->mm_add(set->mem_manager, recv_packet->payload);
+    
+    printf("RECEIVED PACKET\nFlags: %s\nSequence number: %d\n\n",
+           check_flags(recv_packet->flags), recv_packet->seq_num);
+    
+    process_message(set, send_packet, recv_packet);
+}
+
+void process_message(struct server_settings *set, struct packet *send_packet, struct packet *recv_packet)
+{
+    if (recv_packet->flags == FLAG_ACK && !connected)
+    {
+        connected = true;
+    }
+    // FIN/ACK || end of 3-way handshake || additional connect attempt
+    if ((send_packet->flags == (FLAG_FIN | FLAG_ACK) || // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+        recv_packet->flags == FLAG_ACK ||
+        recv_packet->flags == FLAG_SYN) && connected)
+    {
+        return;
+    }
+    if ((recv_packet->flags == FLAG_PSH) &&
+        (recv_packet->seq_num == (uint8_t) (send_packet->seq_num + 1))) // Why I have to cast this, C??
+    {
+        printf("-- PACKET PAYLOAD --\n");
+        process_payload(set, recv_packet);
+        create_resp(send_packet, FLAG_ACK, recv_packet->seq_num);
+    }
+    if (recv_packet->flags == FLAG_FIN)
+    {
+        create_resp(send_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+    }
+    
+    send_resp(set, send_packet);
+}
+
+void process_payload(struct server_settings *set, struct packet *recv_packet)
+{
+    if (write(set->output_fd, recv_packet->payload, recv_packet->length) == -1)
+    {
+        printf("Could not write payload to output.\n");
+    }
+    printf("\n\n");
+    set->mem_manager->mm_free(set->mem_manager, recv_packet->payload);
+    recv_packet->payload = NULL;
+}
+
+void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num)
+{
+    memset(send_packet, 0, sizeof(struct packet));
+    
+    send_packet->flags   = flags;
+    send_packet->seq_num = seq_num;
+}
+
+void send_resp(struct server_settings *set,
+               struct packet *send_packet)
+{
+    uint8_t   *data_buffer = NULL;
+    socklen_t sockaddr_in_size;
+    size_t    packet_size;
+    
+    data_buffer = serialize_packet(send_packet);
+    if (errno == ENOTRECOVERABLE)
+    {
+        close_server(set, 0);
+    }
+    set->mem_manager->mm_add(set->mem_manager, data_buffer);
+    
+    packet_size = sizeof(send_packet->flags) + sizeof(send_packet->seq_num) + sizeof(send_packet->length) +
+                  send_packet->length;
+    
+    printf("SENDING PACKET\nFlags: %s\nSequence Number: %d\n\n",
+           check_flags(send_packet->flags), send_packet->seq_num);
+    
+    sockaddr_in_size = sizeof(struct sockaddr_in);
+    if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) set->client_addr, sockaddr_in_size) == -1)
+    {
+        perror("Message transmission to client failed: ");
+        return;
+    }
+
+    if (send_packet->flags == (FLAG_FIN | FLAG_ACK)) // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+    {
+        *data_buffer = FLAG_FIN;
+        if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) set->client_addr, sockaddr_in_size) == -1)
+        {
+            perror("Message transmission to client failed: ");
+            return;
+        }
+
+        printf("SENDING PACKET\nFlags: %s\nSequence Number: %d\n\n", check_flags(*data_buffer), send_packet->seq_num);
+    }
+    
+    printf("Sending to: %s\n\n", inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
+    
+    set->mem_manager->mm_free(set->mem_manager, data_buffer);
+    
+    // if from await_syn, next step is do_messaging. if from do_messaging, return to do_messaging.
+}
+
+_Noreturn void close_server(struct server_settings *set, int exit_code)
+{
+    if (set->server_fd != 0)
+    {
+        close(set->server_fd);
+    }
+    free_mem_manager(set->mem_manager);
+    exit(exit_code); // NOLINT(concurrency-mt-unsafe) : no threads here
+}
+
+static void set_signal_handling(struct sigaction *sa)
+{
+    sigemptyset(&sa->sa_mask);
+    sa->sa_flags   = 0;
+    sa->sa_handler = signal_handler;
+    if (sigaction(SIGINT, sa, 0) == -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+    }
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+static void signal_handler(int sig)
+{
+    running = 0;
+}
+
+#pragma GCC diagnostic pop
