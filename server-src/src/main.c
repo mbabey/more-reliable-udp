@@ -8,5 +8,7 @@ int main(int argc, char *argv[])
     struct server_settings set;
     run(argc, argv, &set);
     
+    close_server(&set);
+    
     return EXIT_SUCCESS;
 }

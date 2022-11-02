@@ -36,6 +36,7 @@ struct server_settings
     in_port_t server_port;
     int       server_fd;
     int       output_fd;
+    bool      connected;
     
     struct timeval        *timeout;
     struct sockaddr_in    *client_addr;

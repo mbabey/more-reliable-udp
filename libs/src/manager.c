@@ -181,6 +181,7 @@ int mm_free_recurse(struct memory_address *ma) // NOLINT(misc-no-recursion) : re
 
 void *s_malloc(size_t size, const char *file, const char *func, size_t line)
 {
+    errno = 0;
     void *mem = NULL;
     if ((mem = malloc(size)) == NULL)
     {
@@ -192,6 +193,7 @@ void *s_malloc(size_t size, const char *file, const char *func, size_t line)
 
 void *s_calloc(size_t count, size_t size, const char *file, const char *func, size_t line)
 {
+    errno = 0;
     void *mem = NULL;
     if ((mem = calloc(count, size)) == NULL)
     {
@@ -202,6 +204,7 @@ void *s_calloc(size_t count, size_t size, const char *file, const char *func, si
 
 void *s_realloc(void *ptr, size_t size, const char *file, const char *func, size_t line)
 {
+    errno = 0;
     void *mem = NULL;
     if ((mem = realloc(ptr, size)) == NULL)
     {

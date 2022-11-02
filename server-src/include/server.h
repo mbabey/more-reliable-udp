@@ -18,5 +18,15 @@
  */
 void run(int argc, char *argv[], struct server_settings *set);
 
+/**
+ * close_server
+ * <p>
+ * Free allocated memory. Close the server socket.
+ * </p>
+ * @param set - the server settings
+ * @param send_packet - the send packet
+ * @param recv_packet - the receive packet
+ */
+void close_server(struct server_settings *set);
 
 #endif //RELIABLE_UDP_SERVER_H
