@@ -41,7 +41,8 @@ void set_self_ip(char **ip)
     
     for (res_next = results; res_next != NULL; res_next = res_next->ai_next)
     {
-        res_ip = inet_ntoa(((struct sockaddr_in *) res_next->ai_addr)->sin_addr); // NOLINT : No threads here, upcast intentional
+        res_ip = inet_ntoa(
+                ((struct sockaddr_in *) res_next->ai_addr)->sin_addr); // NOLINT : No threads here, upcast intentional
         
         if (strcmp(res_ip, "127.0.0.1") != 0) // If the address is localhost, go to the next address.
         {
@@ -70,8 +71,8 @@ void deserialize_packet(struct packet *packet, const uint8_t *data_buffer)
     
     if (packet->length > 0)
     {
-        packet->payload = (uint8_t *) s_malloc(packet->length + 1, __FILE__, __func__, __LINE__);
-        if (errno == ENOTRECOVERABLE)
+        if ((packet->payload = (uint8_t *) s_malloc(packet->length + 1,
+                                                    __FILE__, __func__, __LINE__)) == NULL)
         {
             return;
         }
@@ -88,10 +89,9 @@ uint8_t *serialize_packet(struct packet *packet)
     uint16_t n_packet_length;
     
     packet_size = sizeof(packet->flags) + sizeof(packet->seq_num) + sizeof(packet->length) + packet->length;
-    data_buffer = (uint8_t *) s_malloc(packet_size, __FILE__, __func__, __LINE__);
-    if (errno == ENOTRECOVERABLE)
+    if ((data_buffer = (uint8_t *) s_malloc(packet_size, __FILE__, __func__, __LINE__)) == NULL)
     {
-        return 0;
+        return NULL;
     }
     
     bytes_copied = 0;

@@ -161,17 +161,23 @@ void run(int argc, char *argv[], struct server_settings *set)
 {
     init_def_state(argc, argv, set);
     open_server(set);
-    await_connect(set);
+    if (!errno)
+    {
+        await_connect(set);
+    }
+    
+    // Return to main.
 }
 
 void open_server(struct server_settings *set)
 {
+    errno = 0;
     struct sockaddr_in server_addr;
     
     if ((set->server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
     {
         fatal_errno(__FILE__, __func__, __LINE__, errno);
-        close_server(set);  // TODO: pop back to main
+        return;
     }
     
     server_addr.sin_family           = AF_INET;
@@ -179,13 +185,13 @@ void open_server(struct server_settings *set)
     if ((server_addr.sin_addr.s_addr = inet_addr(set->server_ip)) == (in_addr_t) -1)
     {
         fatal_errno(__FILE__, __func__, __LINE__, errno);
-        close_server(set);  // TODO: pop back to main
+        return;
     }
     
     if (bind(set->server_fd, (struct sockaddr *) &server_addr, sizeof(struct sockaddr_in)) == -1)
     {
         fatal_errno(__FILE__, __func__, __LINE__, errno);
-        close_server(set);  // TODO: pop back to main
+        return;
     }
     
     printf("\nServer running on %s:%d\n\n", set->server_ip, set->server_port);
@@ -211,36 +217,52 @@ void connect_to(struct server_settings *set)
     struct packet *send_packet = NULL;
     struct packet *recv_packet = NULL;
     
-    send_packet = (struct packet *) s_calloc(1, sizeof(struct packet), __FILE__, __func__,
-                                             __LINE__); // TODO: integrate dc_libs
-    set->mem_manager->mm_add(set->mem_manager, send_packet);
-    recv_packet = (struct packet *) s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__);
-    set->mem_manager->mm_add(set->mem_manager, recv_packet);
+    if ((send_packet = (struct packet *) s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__)) == NULL)
+    {
+        running = 0;
+        return;
+    }
+    if ((recv_packet = (struct packet *) s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__)) == NULL)
+    {
+        running = 0;
+        return;
+    }
+    
+    set->mm->mm_add(set->mm, send_packet);
+    set->mm->mm_add(set->mm, recv_packet);
     
     send_packet->seq_num = MAX_SEQ;
     
-    set->client_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__);
-    set->mem_manager->mm_add(set->mem_manager, set->client_addr);
+    if ((set->client_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in),
+                                                            __FILE__, __func__, __LINE__)) == NULL)
+    {
+        running = 0;
+        return;
+    }
+    set->mm->mm_add(set->mm, set->client_addr);
     
     await_syn(set, send_packet);
+    if (!errno)
+    {
+        do_messaging(set, send_packet, recv_packet);
+    }
     
-    do_messaging(set, send_packet, recv_packet);
-    
-    set->mem_manager->mm_free(set->mem_manager, send_packet);
-    set->mem_manager->mm_free(set->mem_manager, recv_packet);
-    set->mem_manager->mm_free(set->mem_manager, set->client_addr);
+    set->mm->mm_free(set->mm, send_packet);
+    set->mm->mm_free(set->mm, recv_packet);
+    set->mm->mm_free(set->mm, set->client_addr);
 }
 
 void await_syn(struct server_settings *set, struct packet *send_packet)
 {
-    printf("----- AWAITING CONNECTIONS -----\n\n");
+    printf("Awaiting connections.\n\n");
     
     socklen_t sockaddr_in_size;
     uint8_t   buffer[BUF_LEN];
     
     sockaddr_in_size = sizeof(struct sockaddr_in);
-    do
+    do /* This loop will hang until a SYN packet is received. It is essentially accept. */
     {
+        errno = 0;
         if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0,
                       (struct sockaddr *) set->client_addr, &sockaddr_in_size)) == -1)
         {
@@ -248,7 +270,9 @@ void await_syn(struct server_settings *set, struct packet *send_packet)
             {
                 case EINTR:
                 {
-                    close_server(set); // TODO: pop back to main
+                    printf("Closing server.\n");
+                    // running set to 0 with signal handler.
+                    return;
                 }
                 case EAGAIN:
                 {
@@ -257,7 +281,8 @@ void await_syn(struct server_settings *set, struct packet *send_packet)
                 default:
                 {
                     fatal_errno(__FILE__, __func__, __LINE__, errno);
-                    close_server(set); // TODO: exit from main
+                    running = 0;
+                    return;
                 }
             }
         }
@@ -284,18 +309,21 @@ void do_messaging(struct server_settings *set,
     sockaddr_in_size = sizeof(struct sockaddr_in);
     do
     {
-        printf("----- AWAITING MESSAGE -----\n\n");
+        printf("Awaiting message.\n\n");
         
         set->timeout->tv_sec = modify_timeout(timeout_count);
-        if (setsockopt(set->server_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *) set->timeout, sizeof(struct timeval)) ==
-            -1)
+        errno = 0;
+        if (setsockopt(set->server_fd, SOL_SOCKET, SO_RCVTIMEO,
+                       (const char *) set->timeout, sizeof(struct timeval)) == -1)
         {
             fatal_errno(__FILE__, __func__, __LINE__, errno);
-            close_server(set); // TODO: pop back to main
+            running = 0;
+            return;
         }
         
         memset(recv_packet, 0, sizeof(struct packet));
         memset(buffer, 0, BUF_LEN);
+        errno = 0;
         if ((bytes_recv = recvfrom(set->server_fd, buffer, BUF_LEN, 0,
                                    (struct sockaddr *) set->client_addr, &sockaddr_in_size)) == -1)
         {
@@ -303,18 +331,21 @@ void do_messaging(struct server_settings *set,
             {
                 case EINTR:
                 {
-                    close_server(set); // TODO: pop back to main
+                    printf("Closing server.\n");
+                    // running set to 0 with signal handler.
+                    return;
                 }
                 case EWOULDBLOCK:
                 {
-                    printf("Timeout occurred, timeouts remaining: %d\n\n", (MAX_TIMEOUTS_SERVER - (timeout_count + 1)));
+                    printf("Timeout occurred. Timeouts remaining: %d\n\n", (MAX_TIMEOUTS_SERVER - (timeout_count + 1)));
                     ++timeout_count;
                     break;
                 }
                 default:
                 {
                     fatal_errno(__FILE__, __func__, __LINE__, errno);
-                    close_server(set); // TODO: pop back to main
+                    running = 0;
+                    return;
                 }
             }
         }
@@ -361,9 +392,10 @@ void recv_message(struct server_settings *set,
     deserialize_packet(recv_packet, data_buffer);
     if (errno == ENOTRECOVERABLE)
     {
-        close_server(set); // TODO: pop to main
+        running = 0;
+        return; // TODO: pop to main
     }
-    set->mem_manager->mm_add(set->mem_manager, recv_packet->payload);
+    set->mm->mm_add(set->mm, recv_packet->payload);
     
     printf("Received packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
            check_flags(recv_packet->flags), recv_packet->seq_num);
@@ -375,7 +407,7 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
 {
     if (recv_packet->flags == FLAG_ACK && !set->connected)
     {
-        set->connected = true; // TODO: this is busted for multiple clients (maybe?).
+        set->connected = true; // TODO: this is busted for multiple clients (maybe?). Each thread will need it's own connected (maybe?)
     }
     // FIN/ACK || end of 3-way handshake || additional connect attempt
     if ((send_packet->flags == (FLAG_FIN | FLAG_ACK) || // NOLINT(hicpp-signed-bitwise) : highest order bit unused
@@ -407,7 +439,7 @@ void process_payload(struct server_settings *set, struct packet *recv_packet)
         printf("Could not write payload to output.\n");
     }
     printf("\n");
-    set->mem_manager->mm_free(set->mem_manager, recv_packet->payload);
+    set->mm->mm_free(set->mm, recv_packet->payload);
     recv_packet->payload = NULL;
 }
 
@@ -426,12 +458,12 @@ void send_resp(struct server_settings *set,
     socklen_t sockaddr_in_size;
     size_t    packet_size;
     
-    data_buffer = serialize_packet(send_packet);
-    if (errno == ENOTRECOVERABLE)
+    if ((data_buffer = serialize_packet(send_packet)) == NULL)
     {
-        // TODO: pop to main
+        running = 0;
+        return;
     }
-    set->mem_manager->mm_add(set->mem_manager, data_buffer);
+    set->mm->mm_add(set->mm, data_buffer);
     
     packet_size = sizeof(send_packet->flags) + sizeof(send_packet->seq_num)
                   + sizeof(send_packet->length) + send_packet->length;
@@ -464,7 +496,7 @@ void send_resp(struct server_settings *set,
     printf("Sending to: %s\n\n",
            inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
-    set->mem_manager->mm_free(set->mem_manager, data_buffer);
+    set->mm->mm_free(set->mm, data_buffer);
     
     // if from await_syn, next step is do_messaging. if from do_messaging, return to do_messaging.
 }
@@ -475,7 +507,7 @@ void close_server(struct server_settings *set)
     {
         close(set->server_fd);
     }
-    free_mem_manager(set->mem_manager);
+    free_mem_manager(set->mm);
 }
 
 static void set_signal_handling(struct sigaction *sa)

@@ -64,8 +64,8 @@ void set_defaults(struct server_settings *set)
         exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
     }
     
-    set->mem_manager = init_mem_manager();
-    set->mem_manager->mm_add(set->mem_manager, set->timeout);
+    set->mm = init_mem_manager();
+    set->mm->mm_add(set->mm, set->timeout);
     
     set->timeout->tv_sec = DEFAULT_SERVER_TIMEOUT;
 }
@@ -84,7 +84,7 @@ void read_args(int argc, char *argv[], struct server_settings *set)
                 check_ip(optarg, base);
                 if (errno == ENOTRECOVERABLE)
                 {
-                    free_mem_manager(set->mem_manager);
+                    free_mem_manager(set->mm);
                     exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
                 }
                 
@@ -96,7 +96,7 @@ void read_args(int argc, char *argv[], struct server_settings *set)
                 set->server_port = parse_port(optarg, base);
                 if (errno == ENOTRECOVERABLE)
                 {
-                    free_mem_manager(set->mem_manager);
+                    free_mem_manager(set->mm);
                     exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
                 }
                 
@@ -105,7 +105,7 @@ void read_args(int argc, char *argv[], struct server_settings *set)
             default:
             {
                 advise_usage(USAGE);
-                free_mem_manager(set->mem_manager);
+                free_mem_manager(set->mm);
                 exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
             }
         }
@@ -118,7 +118,7 @@ void read_args(int argc, char *argv[], struct server_settings *set)
             (void) fprintf(stderr,
                     "Could not automatically get host IP address; please enter IP address manually with '-i' flag.\n");
             advise_usage(USAGE);
-            free_mem_manager(set->mem_manager);
+            free_mem_manager(set->mm);
             exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
         }
     }

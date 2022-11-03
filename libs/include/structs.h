@@ -40,7 +40,7 @@ struct server_settings
     
     struct timeval        *timeout;
     struct sockaddr_in    *client_addr;
-    struct memory_manager *mem_manager;
+    struct memory_manager *mm;
 };
 
 /**
