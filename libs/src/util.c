@@ -128,7 +128,7 @@ void set_string(char **str, const char *new_str)
     strcpy(*str, new_str);
 }
 
-int do_open(const char *filename, int oflag)
+int do_open(const char *filename, int oflag) // TODO: scrap this shit I mean come on
 {
     int fd;
     

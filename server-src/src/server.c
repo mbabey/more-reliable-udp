@@ -239,7 +239,7 @@ void connect_to(struct server_settings *set)
         running = 0;
         return;
     }
-    set->mm->mm_add(set->mm, set->client_addr);
+    set->mm-> mm_add(set->mm, set->client_addr);
     
     await_syn(set, send_packet);
     if (!errno)
@@ -258,6 +258,7 @@ void await_syn(struct server_settings *set, struct packet *send_packet)
     
     socklen_t sockaddr_in_size;
     uint8_t   buffer[BUF_LEN];
+    // create thread
     
     sockaddr_in_size = sizeof(struct sockaddr_in);
     do /* This loop will hang until a SYN packet is received. It is essentially accept. */
@@ -290,9 +291,10 @@ void await_syn(struct server_settings *set, struct packet *send_packet)
     
     printf("Client connected from: %s\n\n",
            inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
-    
+
     create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
     send_resp(set, send_packet);
+    // join thread, return
 }
 
 void do_messaging(struct server_settings *set,
