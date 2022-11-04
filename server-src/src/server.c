@@ -21,7 +21,7 @@
 #define MAX_TIMEOUTS_SERVER 3
 
 /**
- * @author D'Arcy Smith
+ * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
  */
 static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
 
@@ -145,14 +145,20 @@ void send_resp(struct server_settings *set,
 
 /**
  * set_signal_handling
- * @param sa
+ * <p>
+ * Setup a handler for the SIGINT signal.
+ * </p>
  * @author D'Arcy Smith
+ * @param sa - the sigaction for setup
  */
 static void set_signal_handling(struct sigaction *sa);
 
 /**
  * signal_handler
- * @param sig
+ * <p>
+ * Callback function for the signal handler. Will set running to 0 upon signal.
+ * </p>
+ * @param sig - the signal
  * @author D'Arcy Smith
  */
 static void signal_handler(int sig);

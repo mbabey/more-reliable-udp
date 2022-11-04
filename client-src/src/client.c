@@ -13,17 +13,54 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+/**
+ * The maximum number of timeouts to occur before the connection is deemed lost.
+ */
 #define MAX_TIMEOUT 3
+
+/**
+ * deprecated, soon to be removed.
+ */
 #define OFFSET 0
+
+/**
+ * The base timeout duration before retransmission.
+ */
 #define BASE_TIMEOUT 10
 
+/**
+ * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
+ */
 static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
 
+/**
+ * set_signal_handling
+ * <p>
+ * Setup a handler for the SIGINT signal.
+ * </p>
+ * @author D'Arcy Smith
+ * @param sa - the sigaction for setup
+ */
 static void set_signal_handling(struct sigaction *sa);
 
+/**
+ * signal_handler
+ * <p>
+ * Callback function for the signal handler. Will set running to 0 upon signal.
+ * </p>
+ * @param sig - the signal
+ * @author D'Arcy Smith
+ */
 static void signal_handler(int sig);
 
-void connect_client(struct client_settings *settings);
+/**
+ * open_client
+ * <p>
+ *
+ * </p>
+ * @param settings
+ */
+void open_client(struct client_settings *settings);
 
 void init_connect(struct client_settings *settings);
 
@@ -53,52 +90,52 @@ void run_client(int argc, char *argv[], struct client_settings *settings)
 {
     init_def_state(argc, argv, settings);
     
-    connect_client(settings);
+    open_client(settings);
     init_connect(settings);
     messaging_service(settings);
     
-    close_client(settings, EXIT_SUCCESS);
+    close_client(settings, EXIT_SUCCESS); // TODO: return to main
 }
 
-void connect_client(struct client_settings *settings)
+void open_client(struct client_settings *settings)
 {
-    settings->addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__);
+    settings->client_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__);
     if (errno == ENOTRECOVERABLE)
     {
         free_mem_manager(settings->mem_manager);
-        exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
+        exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here // TODO: return to main
     }
-    settings->mem_manager->mm_add(settings->mem_manager, settings->addr);
+    settings->mem_manager->mm_add(settings->mem_manager, settings->client_addr);
+    
+    settings->client_addr->sin_family           = AF_INET;
+    settings->client_addr->sin_port             = 0; // Ephemeral port.
+    if ((settings->client_addr->sin_addr.s_addr = inet_addr(settings->client_ip)) == (in_addr_t) -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        close_client(settings, EXIT_FAILURE); // TODO: return to main
+    }
+    
+    settings->server_addr.sin_family           = AF_INET;
+    settings->server_addr.sin_port             = htons(settings->server_port);
+    if ((settings->server_addr.sin_addr.s_addr = inet_addr(settings->server_ip)) == (in_addr_t) -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        close_client(settings, EXIT_FAILURE); // TODO: return to main
+    }
     
     if ((settings->server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
     {
         fatal_errno(__FILE__, __func__, __LINE__, errno);
-        close_client(settings, EXIT_FAILURE);
+        close_client(settings, EXIT_FAILURE); // TODO: return to main
     }
     
-    settings->addr->sin_family      = AF_INET;
-    settings->addr->sin_port        = 0;
-    if ((settings->addr->sin_addr.s_addr = inet_addr(settings->client_ip)) == (in_addr_t) -1)
+    if (bind(settings->server_fd, (struct sockaddr *) settings->client_addr, sizeof(struct sockaddr_in)) == -1)
     {
         fatal_errno(__FILE__, __func__, __LINE__, errno);
-        close_client(settings, EXIT_FAILURE);
+        close_client(settings, EXIT_FAILURE); // TODO: return to main
     }
     
-    settings->to_addr.sin_family      = AF_INET;
-    settings->to_addr.sin_port        = htons(settings->server_port);
-    if ((settings->to_addr.sin_addr.s_addr = inet_addr(settings->server_ip)) == (in_addr_t) -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        close_client(settings, EXIT_FAILURE);
-    }
-    
-    if (bind(settings->server_fd, (struct sockaddr *) settings->addr, sizeof(struct sockaddr_in)) == -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        close_client(settings, EXIT_FAILURE);
-    }
-    
-    printf("\nCONNECTING TO SERVER %s:%d\n\n", settings->server_ip, settings->server_port);
+    printf("\nConnecting to server %s:%d\n\n", settings->server_ip, settings->server_port);
 }
 
 void init_connect(struct client_settings *settings)
@@ -148,13 +185,11 @@ void messaging_service(struct client_settings *settings)
 
 void read_msg(struct client_settings *settings, char **msg)
 {
-    printf("----- MESSAGING SERVICE -----\n\n");
-    
     char input[BUF_LEN];
 
     printf("%s", (settings->is_file) ?
-                 "Please enter the name of the file you wish to send: " :
-                 "Please enter the string you wish to send: ");
+                 "Please enter the name of the file you wish to send: \n" :
+                 "Please enter the string you wish to send: \n");
     
     if (fgets(input, BUF_LEN, stdin) == NULL)
     {
@@ -166,12 +201,10 @@ void read_msg(struct client_settings *settings, char **msg)
     
     input[strcspn(input, "\n")] = '\0';
     
-    printf("\n");
-    
     if (settings->is_file)
     {
-        printf("-- OPENING FILE --\n");
-        read_file(msg, input);
+        printf("Opening file\n");
+        read_file(msg, input); // TODO: fix file input
     } else
     {
         set_string(msg, input);
@@ -179,7 +212,7 @@ void read_msg(struct client_settings *settings, char **msg)
     
     if (errno == ENOTRECOVERABLE)
     {
-        close_client(settings, EXIT_FAILURE);
+        close_client(settings, EXIT_FAILURE); // TODO: return to main
     }
     settings->mem_manager->mm_add(settings->mem_manager, *msg);
     printf("Sending message: %s\n\n", *msg);
@@ -190,13 +223,13 @@ void read_file(char **msg, const char *input)
     int     fd;
     ssize_t len;
     
-    if ((fd = do_open(input, O_RDONLY)) == -1)
+    if ((fd = do_open(input, O_RDONLY)) == -1) // TODO: FIX THIS SHIT UGH
     {
         *msg = NULL;
         return;
     }
     
-    if ((len = do_lseek(fd, OFFSET, SEEK_END) + 1) == 0)
+    if ((len = do_lseek(fd, OFFSET, SEEK_END) + 1) == 0) // TODO: get the file size in a better way
     {
         *msg = NULL;
         return;
@@ -236,7 +269,7 @@ void send_msg(struct packet *send_packet, struct client_settings *settings)
     serialized_packet = serialize_packet(send_packet);
     if (errno == ENOTRECOVERABLE)
     {
-        close_client(settings, EXIT_FAILURE);
+        close_client(settings, EXIT_FAILURE); // TODO: return to main
     }
     settings->mem_manager->mm_add(settings->mem_manager, serialized_packet);
     
@@ -244,12 +277,12 @@ void send_msg(struct packet *send_packet, struct client_settings *settings)
                         send_packet->length;
     
     if (sendto(settings->server_fd, serialized_packet, packet_size, 0,
-               (struct sockaddr *) &settings->to_addr, sockaddr_in_size) == -1)
+               (struct sockaddr *) &settings->server_addr, sockaddr_in_size) == -1)
     {
         if (send_packet->flags == FLAG_SYN) // If we are sending the SYN and this returns -1, you'll need to restart.
         {
             fatal_errno(__FILE__, __func__, __LINE__, errno);
-            close_client(settings, EXIT_FAILURE);
+            close_client(settings, EXIT_FAILURE); // TODO: return to main
         } else // If we are sending PSH, ACK, FIN, FIN/ACK and this returns -1, go ahead and try again.
         {
             return;
@@ -265,7 +298,7 @@ void send_msg(struct packet *send_packet, struct client_settings *settings)
     
     if (send_packet->flags != FLAG_ACK)
     {
-        await_response(settings, serialized_packet, packet_size);
+        await_response(settings, serialized_packet, packet_size); // TODO: decouple this
     }
     
     settings->mem_manager->mm_free(settings->mem_manager, serialized_packet);
@@ -283,7 +316,7 @@ void await_response(struct client_settings *settings, uint8_t *serialized_packet
                    sizeof(struct timeval)) == -1)
     {
         fatal_errno(__FILE__, __func__, __LINE__, errno);
-        close_client(settings, EXIT_FAILURE);
+        close_client(settings, EXIT_FAILURE); // TODO: return to main
     }
     
     sockaddr_in_size = sizeof(struct sockaddr_in);
@@ -295,7 +328,7 @@ void await_response(struct client_settings *settings, uint8_t *serialized_packet
         printf("----- AWAITING RESPONSE -----\n\n");
         
         if (recvfrom(settings->server_fd, recv_buffer, BUF_LEN, 0,
-                     (struct sockaddr *) settings->addr, &sockaddr_in_size) == -1)
+                     (struct sockaddr *) settings->client_addr, &sockaddr_in_size) == -1)
         {
             switch (errno)
             {
@@ -319,7 +352,7 @@ void await_response(struct client_settings *settings, uint8_t *serialized_packet
                 default:
                 {
                     fatal_errno(__FILE__, __func__, __LINE__, errno);
-                    close_client(settings, EXIT_FAILURE);
+                    close_client(settings, EXIT_FAILURE); // TODO: return to main
                 }
             }
         } else
@@ -336,8 +369,7 @@ bool process_response(struct client_settings *settings, const uint8_t *recv_buff
 {
     bool received = true;
     
-    printf("Received response from server\n");
-    printf("Received packet flags: %s\n\n", check_flags(*recv_buffer));
+    printf("Received response:\n\tFlags: %s\n", check_flags(*recv_buffer));
     
     // FIN/ACK received from server, FIN should be incoming. Go back to await the FIN.
     if (*recv_buffer == (FLAG_FIN | FLAG_ACK)) // NOLINT(hicpp-signed-bitwise) : highest order bit unused
@@ -358,13 +390,13 @@ bool process_response(struct client_settings *settings, const uint8_t *recv_buff
 void handle_recv_timeout(struct client_settings *settings,
                          uint8_t *serialized_packet,
                          size_t packet_size,
-                         int num_timeouts)
+                         int num_timeouts) // TODO: implement changing timeout
 {
     // Connection to server failure.
     if (num_timeouts >= MAX_TIMEOUT && *serialized_packet == FLAG_SYN)
     {
         printf("Too many unsuccessful attempts to connect to server, terminating\n");
-        close_client(settings, EXIT_SUCCESS);
+        close_client(settings, EXIT_SUCCESS); // TODO: return to main
     }
     
     retransmit_packet(settings, serialized_packet, packet_size);
@@ -378,7 +410,7 @@ void retransmit_packet(struct client_settings *settings, const uint8_t *serializ
     
     sockaddr_in_size = sizeof(struct sockaddr_in);
     
-    if (sendto(settings->server_fd, serialized_packet, packet_size, 0, (struct sockaddr *) &settings->to_addr,
+    if (sendto(settings->server_fd, serialized_packet, packet_size, 0, (struct sockaddr *) &settings->server_addr,
                sockaddr_in_size) == -1)
     {
         // Just tell em and go back to timeout.
@@ -415,7 +447,7 @@ static void set_signal_handling(struct sigaction *sa)
     sa->sa_handler = signal_handler;
     if ((sigaction(SIGINT, sa, NULL)) == -1)
     {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        fatal_errno(__FILE__, __func__, __LINE__, errno); // TODO: return to main
     }
 }
 

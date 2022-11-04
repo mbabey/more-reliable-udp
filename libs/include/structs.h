@@ -64,8 +64,8 @@ struct client_settings
     in_port_t server_port;
     bool is_file;
     
-    struct sockaddr_in *addr;
-    struct sockaddr_in to_addr;
+    struct sockaddr_in *client_addr;
+    struct sockaddr_in server_addr;
     
     struct timeval        *timeout;
     struct memory_manager *mem_manager;
