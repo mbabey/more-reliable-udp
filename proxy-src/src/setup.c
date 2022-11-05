@@ -2,6 +2,7 @@
 // Created by Maxwell Babey on 10/27/22.
 //
 
+#include "../include/proxy.h"
 #include "../include/setup.h"
 #include "../../libs/include/error.h"
 #include "../../libs/include/input-validation.h"

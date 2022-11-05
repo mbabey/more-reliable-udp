@@ -1,5 +1,4 @@
 
-#include "../../libs/include/structs.h"
 #include "../include/proxy.h"
 #include <stdlib.h>
 

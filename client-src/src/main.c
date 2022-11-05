@@ -1,4 +1,3 @@
-#include "../../libs/include/structs.h"
 #include "../include/client.h"
 #include <stdlib.h>
 

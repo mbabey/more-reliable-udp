@@ -5,7 +5,7 @@
 #ifndef RELIABLE_UDP_SETUP_H
 #define RELIABLE_UDP_SETUP_H
 
-#include "../../libs/include/structs.h"
+#include "../include/server.h"
 
 /**
  * Server timeout intervals in seconds.

@@ -6,6 +6,7 @@
 #define RELIABLE_UDP_CLIENT_H
 
 #include "../../libs/include/manager.h"
+#include <sys/types.h>
 
 /**
  * client_settings

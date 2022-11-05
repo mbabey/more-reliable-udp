@@ -231,7 +231,7 @@ void do_synchronize(struct client_settings *set)
     
     memset(&send_packet, 0, sizeof(struct packet));
     
-    printf("\nConnecting to server %s:%d\n\n", set->server_ip, set->server_port);
+    printf("\nConnecting to server %s:%ld\n\n", set->server_ip, set->server_port);
     
     create_packet(&send_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     send_msg(set, &send_packet);

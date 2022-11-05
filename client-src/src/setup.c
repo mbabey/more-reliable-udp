@@ -2,6 +2,7 @@
 #include "../../libs/include/input-validation.h"
 #include "../../libs/include/manager.h"
 #include "../../libs/include/util.h"
+#include "../include/client.h"
 #include "../include/setup.h"
 #include <assert.h>
 #include <string.h>
@@ -28,7 +29,6 @@ void init_def_state(int argc, char *argv[], struct client_settings *settings)
     
     settings->server_fd   = STDOUT_FILENO;
     settings->server_port = DEFAULT_PORT;
-    settings->is_file     = false;
     
     settings->timeout = (struct timeval *) s_calloc(1, sizeof(struct timeval), __FILE__, __func__, __LINE__);
     if (errno == ENOTRECOVERABLE)
