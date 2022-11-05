@@ -28,10 +28,11 @@
  * When checking if a packet has certain flags, combine flags and check equality
  * (eg: (packet->flags == (FLAG_SYN | FLAG_ACK) is true if packet->flags is a SYN/ACK)
  */
-#define FLAG_ACK (uint8_t) 1 // 0000 0001
-#define FLAG_PSH (uint8_t) 2 // 0000 0010
-#define FLAG_SYN (uint8_t) 4 // 0000 0100
-#define FLAG_FIN (uint8_t) 8 // 0000 1000
+#define FLAG_ACK (uint8_t) 1  // 0000 0001
+#define FLAG_PSH (uint8_t) 2  // 0000 0010
+#define FLAG_SYN (uint8_t) 4  // 0000 0100
+#define FLAG_FIN (uint8_t) 8  // 0000 1000
+#define FLAG_TRN (uint8_t) 16 // 0001 0000
 
 /**
  * packet
