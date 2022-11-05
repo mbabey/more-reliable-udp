@@ -6,7 +6,6 @@
 #include "../include/error.h"
 #include "../include/util.h"
 #include <arpa/inet.h>
-#include <fcntl.h>
 #include <netdb.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -135,71 +134,6 @@ void set_string(char **str, const char *new_str)
     }
     
     strcpy(*str, new_str);
-}
-
-int do_open(const char *filename, int oflag) // TODO: scrap this shit I mean come on
-{
-    int fd;
-    
-    if ((fd = open(filename, oflag)) == -1)
-    {
-        const char *msg;
-        
-        msg = strerror(errno); // NOLINT(concurrency-mt-unsafe) : no threads here
-        fprintf(stderr, "Error opening %s: %s\n\n", filename, msg); // NOLINT (cert-err33-c)
-    }
-    
-    return fd;
-}
-
-ssize_t do_read(int fd, void *buf, size_t nbytes)
-{
-    ssize_t result;
-    
-    errno = 0;
-    if ((result = read(fd, buf, nbytes)) == -1)
-    {
-        const char *msg;
-        
-        msg = strerror(errno); // NOLINT(concurrency-mt-unsafe) : no threads here
-        fprintf(stderr, "Error reading %d: %s\n", fd, msg); // NOLINT (cert-err33-c)
-        errno = ENOTRECOVERABLE;
-    }
-    
-    return result;
-}
-
-int do_close(const char *filename, int fd)
-{
-    errno = 0;
-    int ret_val;
-    
-    if ((ret_val = close(fd)) == -1)
-    {
-        const char *msg;
-        
-        msg = strerror(errno); // NOLINT(concurrency-mt-unsafe) : no threads here
-        fprintf(stderr, "Error closing %s: %s\n", filename, msg); // NOLINT (cert-err33-c)
-        errno = ENOTRECOVERABLE;
-    }
-    
-    return ret_val;
-}
-
-ssize_t do_lseek(int fd, off_t offset, int whence)
-{
-    ssize_t result;
-    errno = 0;
-    if ((result = lseek(fd, offset, whence)) == -1)
-    {
-        const char *msg;
-        
-        msg = strerror(errno); // NOLINT(concurrency-mt-unsafe) : no threads here
-        fprintf(stderr, "Error seeking %d: %s\n", fd, msg); // NOLINT (cert-err33-c)
-        errno = ENOTRECOVERABLE;
-    }
-    
-    return result;
 }
 
 const char *check_flags(uint8_t flags)

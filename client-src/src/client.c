@@ -98,7 +98,7 @@ void send_msg(struct client_settings *set, struct packet *send_packet);
  * @param serialized_packet - the serialized send packet
  * @param packet_size - the size of the packet
  */
-void await_response(struct client_settings *set, uint8_t *serialized_packet, size_t packet_size);
+void await_response(struct client_settings *set, struct packet *send_packet, uint8_t flags);
 
 /**
  * read_msg
@@ -231,14 +231,16 @@ void do_synchronize(struct client_settings *set)
     
     memset(&send_packet, 0, sizeof(struct packet));
     
-    printf("\nConnecting to server %s:%ld\n\n", set->server_ip, set->server_port);
+    printf("\nConnecting to server %s:%u\n\n", set->server_ip, set->server_port);
     
     create_packet(&send_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     send_msg(set, &send_packet);
+    await_response(set, &send_packet, 0);
     if (!errno)
     {
         create_packet(&send_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
         send_msg(set, &send_packet);
+        await_response(set, &send_packet, 0);
     }
 }
 
@@ -269,6 +271,7 @@ void do_messaging(struct client_settings *set)
             
             printf("Sending message: %s\n\n", msg);
             send_msg(set, &send_packet);
+            await_response(set, &send_packet, 0);
             
             set->mem_manager->mm_free(set->mem_manager, msg);
         }
@@ -288,11 +291,13 @@ void do_fin_seq(struct client_settings *set)
     
     create_packet(&send_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
     send_msg(set, &send_packet);
+    await_response(set, &send_packet, 0);
     if (!errno)
     {
         create_packet(&send_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0,
                       NULL); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
         send_msg(set, &send_packet);
+        await_response(set, &send_packet, 0);
     }
 }
 
@@ -364,18 +369,15 @@ void send_msg(struct client_settings *set, struct packet *send_packet)
         printf("Waiting to receive FIN from server; feel free to terminate.\n\n");
     }
     
-    if (send_packet->flags != FLAG_ACK)
-    {
-        await_response(set, serialized_packet, packet_size); // TODO: decouple this
-    }
-    
     set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
 
-void await_response(struct client_settings *set, uint8_t *serialized_packet, size_t packet_size)
+void await_response(struct client_settings *set, struct packet *send_packet, uint8_t flags)
 {
     socklen_t sockaddr_in_size;
+    uint8_t   *serialized_packet;
     uint8_t   recv_buffer[BUF_LEN];
+    size_t    packet_size;
     bool      received;
     int       num_timeouts;
     
@@ -388,13 +390,23 @@ void await_response(struct client_settings *set, uint8_t *serialized_packet, siz
         return;
     }
     
+    serialized_packet = serialize_packet(send_packet);
+    if (errno == ENOTRECOVERABLE)
+    {
+        running = 0;
+        return;
+    }
+    
+    packet_size = sizeof(send_packet->flags) + sizeof(send_packet->seq_num) + sizeof(send_packet->length) +
+                  send_packet->length;
+    
     sockaddr_in_size = sizeof(struct sockaddr_in);
     received         = false;
     num_timeouts     = 0;
     do
     {
         memset(recv_buffer, 0, BUF_LEN);
-        printf("Awaiting response...\n\n");
+        printf("Awaiting response with flags: %s\n\n", check_flags(flags));
         
         if (recvfrom(set->server_fd, recv_buffer, BUF_LEN, 0,
                      (struct sockaddr *) set->client_addr, &sockaddr_in_size) == -1)

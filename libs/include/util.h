@@ -5,13 +5,13 @@
 #ifndef LIBS_SELF_IP_H
 #define LIBS_SELF_IP_H
 
-#include "structs.h"
 #include <stdbool.h>
+#include <sys/types.h>
 
 /**
  * The default port number for the proxy, client, and server.
  */
-#define DEFAULT_PORT 5000
+#define DEFAULT_PORT (in_port_t) 5000
 
 /**
  * The size of input buffers : 1 KB
@@ -21,17 +21,17 @@
 /**
  * The maximum sequence number.
  */
-#define MAX_SEQ 255
+#define MAX_SEQ (uint8_t) 255
 
 /**
  * Bit masks for flags. Bitwise OR these to make combinations of flags (eg: FIN/ACK = FLAG_FIN | FLAG_ACK)
  * When checking if a packet has certain flags, combine flags and check equality
  * (eg: (packet->flags == (FLAG_SYN | FLAG_ACK) is true if packet->flags is a SYN/ACK)
  */
-#define FLAG_ACK 1 // 0000 0001
-#define FLAG_PSH 2 // 0000 0010
-#define FLAG_SYN 4 // 0000 0100
-#define FLAG_FIN 8 // 0000 1000
+#define FLAG_ACK (uint8_t) 1 // 0000 0001
+#define FLAG_PSH (uint8_t) 2 // 0000 0010
+#define FLAG_SYN (uint8_t) 4 // 0000 0100
+#define FLAG_FIN (uint8_t) 8 // 0000 1000
 
 /**
  * packet
