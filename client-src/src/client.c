@@ -26,7 +26,7 @@
 /**
  * The base timeout duration before retransmission.
  */
-#define BASE_TIMEOUT 10
+#define BASE_TIMEOUT 1
 
 /**
  * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
@@ -252,6 +252,7 @@ void do_synchronize(struct client_settings *set)
     
     create_packet(&send_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     send_msg(set, &send_packet);
+    int test = errno;
     if (!errno)
     {
         create_packet(&send_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
@@ -419,7 +420,7 @@ void send_msg(struct client_settings *set, struct packet *send_packet)
         return;
     }
     
-    printf("SENT PACKET\nFlags: %s\nLength: %zu\n\n", check_flags(send_packet->flags), packet_size);
+    printf("Sent packet:\n\tFlags: %s\n\tLength: %zu\n\n", check_flags(send_packet->flags), packet_size);
     
     if (send_packet->flags == (FLAG_FIN | FLAG_ACK)) // NOLINT(hicpp-signed-bitwise) : highest order bit unused
     {
@@ -429,8 +430,11 @@ void send_msg(struct client_settings *set, struct packet *send_packet)
     if (send_packet->flags != FLAG_ACK)
     {
         await_response(set, serialized_packet, packet_size); // TODO: decouple this
+        
+        
     }
     
+    int test = errno;
     set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
 
@@ -470,8 +474,8 @@ void await_response(struct client_settings *set, uint8_t *serialized_packet, siz
                 case EWOULDBLOCK:
                 {
                     ++num_timeouts;
-                    handle_recv_timeout(set, serialized_packet, packet_size, num_timeouts);
                     printf("Timeout occurred, timeouts remaining: %d\n\n", (MAX_TIMEOUT - num_timeouts));
+                    handle_recv_timeout(set, serialized_packet, packet_size, num_timeouts);
                     
                     if (num_timeouts >= MAX_TIMEOUT &&
                         *serialized_packet ==
@@ -479,6 +483,8 @@ void await_response(struct client_settings *set, uint8_t *serialized_packet, siz
                     {
                         printf("Assuming server terminated, disconnecting.\n\n");
                     }
+                    
+              
                     
                     break;
                 }

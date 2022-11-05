@@ -51,7 +51,8 @@ int mm_free_all(struct memory_manager *mem_manager);
  */
 int mm_free_recurse(struct memory_address *ma);
 
-void alloc_err(const char *file, const char *func, size_t line, int err_code); // NOLINT(bugprone-easily-swappable-parameters)
+void alloc_err(const char *file, const char *func, size_t line,
+               int err_code); // NOLINT(bugprone-easily-swappable-parameters)
 
 struct memory_address
 {
@@ -79,8 +80,6 @@ struct memory_manager *init_mem_manager(void)
 
 int free_mem_manager(struct memory_manager *mem_manager)
 {
-    errno = 0;
-    
     if (mem_manager == NULL)
     {
         errno = EFAULT;
@@ -112,7 +111,7 @@ void *mm_add(struct memory_manager *mem_manager, void *mem)
         return ma;
     }
     
-    bool exists = false;
+    bool                  exists  = false;
     
     ma_cur = mem_manager->head;
     while (ma_cur->next != NULL)
@@ -134,7 +133,6 @@ void *mm_add(struct memory_manager *mem_manager, void *mem)
 
 int mm_free(struct memory_manager *mem_manager, void *mem)
 {
-    errno                          = 0;
     struct memory_address *ma      = NULL;
     struct memory_address *ma_prev = NULL;
     
@@ -193,7 +191,6 @@ int mm_free_recurse(struct memory_address *ma) // NOLINT(misc-no-recursion) : re
 
 void *s_malloc(size_t size, const char *file, const char *func, size_t line)
 {
-    errno = 0;
     void *mem = NULL;
     if ((mem = malloc(size)) == NULL)
     {
@@ -205,7 +202,6 @@ void *s_malloc(size_t size, const char *file, const char *func, size_t line)
 
 void *s_calloc(size_t count, size_t size, const char *file, const char *func, size_t line)
 {
-    errno = 0;
     void *mem = NULL;
     if ((mem = calloc(count, size)) == NULL)
     {
@@ -216,7 +212,6 @@ void *s_calloc(size_t count, size_t size, const char *file, const char *func, si
 
 void *s_realloc(void *ptr, size_t size, const char *file, const char *func, size_t line)
 {
-    errno = 0;
     void *mem = NULL;
     if ((mem = realloc(ptr, size)) == NULL)
     {
@@ -225,10 +220,12 @@ void *s_realloc(void *ptr, size_t size, const char *file, const char *func, size
     return mem;
 }
 
-void alloc_err(const char *file, const char *func, const size_t line, int err_code) // NOLINT(bugprone-easily-swappable-parameters)
+void alloc_err(const char *file, const char *func, const size_t line,
+               int err_code) // NOLINT(bugprone-easily-swappable-parameters)
 {
     const char *msg;
     
     msg = strerror(err_code); // NOLINT(concurrency-mt-unsafe)
-    fprintf(stderr, "Memory allocation error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code, msg); // NOLINT(cert-err33-c)
+    fprintf(stderr, "Memory allocation error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code,
+            msg); // NOLINT(cert-err33-c)
 }
