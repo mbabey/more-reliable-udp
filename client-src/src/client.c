@@ -260,11 +260,11 @@ void do_messaging(struct client_settings *set)
     
     while (running)
     {
-        msg = read_msg(set, msg); // TODO: this will be 'take input'
+        msg = read_msg(set, msg); // TODO(maxwell): this will be 'take input'
         
         
         
-        if (msg != NULL) // TODO: this will be 'is_turn'
+        if (msg != NULL) // TODO(maxwell): this will be 'is_turn'
         {
             /* Create a packet and increment the sequence number. */
             create_packet(&s_packet, FLAG_PSH, seq++, strlen(msg), (uint8_t *) msg);
@@ -276,7 +276,7 @@ void do_messaging(struct client_settings *set)
             set->mem_manager->mm_free(set->mem_manager, msg);
         }
         
-        msg = NULL; // TODO: input = NULL
+        msg = NULL; // TODO(maxwell): input = NULL
     }
     
     if (!errno)
@@ -302,7 +302,7 @@ void do_fin_seq(struct client_settings *set)
     }
 }
 
-char *read_msg(struct client_settings *set, char *msg) // TODO: deprecated, here for testing purposes
+char *read_msg(struct client_settings *set, char *msg) // TODO(maxwell): deprecated, here for testing purposes
 {
     char input[BUF_LEN];
     
@@ -469,7 +469,7 @@ void process_response(struct client_settings *set, const uint8_t *recv_buffer)
 void handle_recv_timeout(struct client_settings *set,
                          uint8_t *serialized_packet,
                          size_t packet_size,
-                         int num_timeouts) // TODO: implement changing timeout
+                         int num_timeouts) // TODO(maxwell): implement changing timeout
 {
     printf("Timeout occurred, timeouts remaining: %d\n\n", (MAX_TIMEOUT - num_timeouts));
     

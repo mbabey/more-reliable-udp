@@ -40,8 +40,8 @@ void set_self_ip(char **ip)
     
     for (res_next = results; res_next != NULL; res_next = res_next->ai_next)
     {
-        res_ip = inet_ntoa(
-                ((struct sockaddr_in *) res_next->ai_addr)->sin_addr); // NOLINT : No threads here, upcast intentional
+        res_ip = inet_ntoa( // NOLINT : No threads here, upcast intentional
+                ((struct sockaddr_in *) res_next->ai_addr)->sin_addr);
         
         if (strcmp(res_ip, "127.0.0.1") != 0) // If the address is localhost, go to the next address.
         {
@@ -87,7 +87,7 @@ uint8_t *serialize_packet(struct packet *packet)
     size_t   bytes_copied;
     uint16_t n_packet_length;
     
-    packet_size = sizeof(packet->flags) + sizeof(packet->seq_num) + sizeof(packet->length) + packet->length;
+    packet_size      = sizeof(packet->flags) + sizeof(packet->seq_num) + sizeof(packet->length) + packet->length;
     if ((data_buffer = (uint8_t *) s_malloc(packet_size, __FILE__, __func__, __LINE__)) == NULL)
     {
         return NULL;
@@ -120,14 +120,14 @@ void set_string(char **str, const char *new_str)
     if (!*str) // Double negative: true if the string is NULL
     {
         errno = 0;
-        if((*str = (char *) malloc(buf)) == NULL)
+        if ((*str = (char *) malloc(buf)) == NULL)
         {
             return;
         }
     } else
     {
         errno = 0;
-        if((*str = (char *) realloc(*str, buf)) == NULL)
+        if ((*str = (char *) realloc(*str, buf)) == NULL)
         {
             return;
         }

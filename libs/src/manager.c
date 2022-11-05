@@ -4,10 +4,10 @@
 
 #include "../include/manager.h"
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 /**
  * mm_add
@@ -226,6 +226,6 @@ void alloc_err(const char *file, const char *func, const size_t line,
     const char *msg;
     
     msg = strerror(err_code); // NOLINT(concurrency-mt-unsafe)
-    fprintf(stderr, "Memory allocation error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code,
-            msg); // NOLINT(cert-err33-c)
+    (void) fprintf(stderr, "Memory allocation error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code,
+            msg);
 }

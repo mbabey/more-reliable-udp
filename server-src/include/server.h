@@ -5,8 +5,8 @@
 #ifndef RELIABLE_UDP_SERVER_H
 #define RELIABLE_UDP_SERVER_H
 
-#include <sys/types.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
 /**
  * server_settings
