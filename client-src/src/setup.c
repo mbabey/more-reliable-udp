@@ -1,8 +1,6 @@
 #include "../../libs/include/error.h"
 #include "../../libs/include/input-validation.h"
-#include "../../libs/include/manager.h"
 #include "../../libs/include/util.h"
-#include "../include/client.h"
 #include "../include/setup.h"
 #include <assert.h>
 #include <string.h>
