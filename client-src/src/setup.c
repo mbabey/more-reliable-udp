@@ -8,7 +8,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#define USAGE "client -i <host IP> -o <server IP> -p <port number> -f (for file input) "
+#define USAGE "client -i <host IP> -o <server IP> -p <port number>"
 
 /**
  * parse_arguments
@@ -47,7 +47,7 @@ void parse_arguments(int argc, char *argv[], struct client_settings *settings)
     const uint8_t base = 10;
     int           c;
     
-    while ((c = getopt(argc, argv, ":i:o:p:f")) != -1)   // NOLINT(concurrency-mt-unsafe)
+    while ((c = getopt(argc, argv, ":i:o:p:")) != -1)   // NOLINT(concurrency-mt-unsafe)
     {
         switch (c)
         {
@@ -86,11 +86,6 @@ void parse_arguments(int argc, char *argv[], struct client_settings *settings)
                 
                 break;
             }
-            case 'f':
-            {
-                settings->is_file = true;
-                break;
-            }
             default:
             {
                 assert("should not get here");
@@ -103,6 +98,7 @@ void parse_arguments(int argc, char *argv[], struct client_settings *settings)
         free_mem_manager(settings->mem_manager);
         exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
     }
+    
     if (settings->client_ip == NULL) /* If the client IP has not been input, try the self_ip function. */
     {
         set_self_ip(&settings->client_ip);

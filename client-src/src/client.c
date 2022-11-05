@@ -313,13 +313,11 @@ void do_fin_seq(struct client_settings *set)
     }
 }
 
-char *read_msg(struct client_settings *set, char *msg)
+char *read_msg(struct client_settings *set, char *msg) // TODO: deprecated, here for testing purposes
 {
     char input[BUF_LEN];
     
-    printf("%s", (set->is_file) ?
-                 "Please enter the name of the file you wish to send: \n" :
-                 "Please enter the string you wish to send: \n");
+    printf("Please enter the string you wish to send: \n");
     
     errno = 0;
     if (fgets(input, BUF_LEN, stdin) == NULL)
@@ -339,58 +337,13 @@ char *read_msg(struct client_settings *set, char *msg)
     
     input[strcspn(input, "\n")] = '\0';
     
-    if (set->is_file)
-    {
-        printf("Opening file\n");
-        msg = read_file(msg, input); // TODO: fix file input
-    } else
-    {
-        set_string(&msg, input);
-    }
-    
-    if (errno == ENOTRECOVERABLE || errno == ENOMEM) /* If a catastrophic error occurred in read_file or set_string. */
+    set_string(&msg, input);
+    if (errno == ENOMEM) /* If a catastrophic error occurred in or set_string. */
     {
         running = 0;
         return NULL;
     }
     set->mem_manager->mm_add(set->mem_manager, msg);
-    
-    return msg;
-}
-
-char *read_file(char *msg, const char *input)
-{
-    int     fd;
-    ssize_t len;
-    
-    if ((fd = do_open(input, O_RDONLY)) == -1)
-    {
-        return NULL;
-    }
-    
-    if ((len = do_lseek(fd, OFFSET, SEEK_END) + 1) == 0) // TODO: get the file size in a better way
-    {
-        return NULL;
-    }
-    if (do_lseek(fd, OFFSET, SEEK_SET) == -1)
-    {
-        return NULL;
-    }
-    
-    if ((msg = (char *) s_calloc(len, sizeof(char), __FILE__, __func__, __LINE__)) == NULL)
-    {
-        return NULL;
-    }
-    
-    if (do_read(fd, msg, len - 1) == -1)
-    {
-        return NULL;
-    }
-    
-    if (do_close(input, fd) == -1)
-    {
-        return NULL;
-    }
     
     return msg;
 }
