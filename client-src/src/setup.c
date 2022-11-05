@@ -10,6 +10,16 @@
 
 #define USAGE "client -i <host IP> -o <server IP> -p <port number> -f (for file input) "
 
+/**
+ * parse_arguments
+ * <p>
+ * Parse the command line arguments and set values in the settings appropriately.
+ * Clean up and terminate the program if a user error occurs.
+ * </p>
+ * @param argc - the number of command line arguments
+ * @param argv - the command line arguments
+ * @param settings - the settings for the Client
+ */
 void parse_arguments(int argc, char *argv[], struct client_settings *settings);
 
 void init_def_state(int argc, char *argv[], struct client_settings *settings)
@@ -87,16 +97,16 @@ void parse_arguments(int argc, char *argv[], struct client_settings *settings)
             }
         }
     }
-    if (settings->server_ip == NULL)
+    if (settings->server_ip == NULL) /* If the server IP has not been input, exit. */
     {
         advise_usage(USAGE);
         free_mem_manager(settings->mem_manager);
         exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
     }
-    if (settings->client_ip == NULL)
+    if (settings->client_ip == NULL) /* If the client IP has not been input, try the self_ip function. */
     {
         set_self_ip(&settings->client_ip);
-        if (settings->client_ip == NULL)
+        if (settings->client_ip == NULL) /* If the client IP has still not been set, exit. */
         {
             (void) fprintf(stderr,
                     "Could not automatically get host IP address; please enter IP address manually with '-i' flag.\n");

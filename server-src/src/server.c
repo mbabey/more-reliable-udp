@@ -248,6 +248,7 @@ void connect_to(struct server_settings *set)
     set->mm-> mm_add(set->mm, set->client_addr);
     
     await_syn(set, send_packet);
+    
     if (!errno)
     {
         do_messaging(set, send_packet, recv_packet);
@@ -311,7 +312,6 @@ void do_messaging(struct server_settings *set,
     socklen_t sockaddr_in_size;
     ssize_t   bytes_recv;
     uint8_t   timeout_count;
-    
     
     timeout_count    = 0;
     sockaddr_in_size = sizeof(struct sockaddr_in);
@@ -401,7 +401,7 @@ void recv_message(struct server_settings *set,
     if (errno == ENOTRECOVERABLE)
     {
         running = 0;
-        return; // TODO: pop to main
+        return;
     }
     set->mm->mm_add(set->mm, recv_packet->payload);
     
