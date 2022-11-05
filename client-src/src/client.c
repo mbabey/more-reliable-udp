@@ -252,7 +252,6 @@ void do_synchronize(struct client_settings *set)
     
     create_packet(&send_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     send_msg(set, &send_packet);
-    int test = errno;
     if (!errno)
     {
         create_packet(&send_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
@@ -392,6 +391,8 @@ char *read_file(char *msg, const char *input)
     {
         return NULL;
     }
+    
+    return msg;
 }
 
 void send_msg(struct client_settings *set, struct packet *send_packet)
@@ -413,7 +414,7 @@ void send_msg(struct client_settings *set, struct packet *send_packet)
                   send_packet->length;
     
     if (sendto(set->server_fd, serialized_packet, packet_size, 0,
-               (struct sockaddr *) &set->server_addr, sockaddr_in_size) == -1)
+               (struct sockaddr *) set->server_addr, sockaddr_in_size) == -1)
     {
         /* errno will be set. */
         perror("Message transmission to server failed: ");
@@ -434,7 +435,6 @@ void send_msg(struct client_settings *set, struct packet *send_packet)
         
     }
     
-    int test = errno;
     set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
 
@@ -483,8 +483,6 @@ void await_response(struct client_settings *set, uint8_t *serialized_packet, siz
                     {
                         printf("Assuming server terminated, disconnecting.\n\n");
                     }
-                    
-              
                     
                     break;
                 }
@@ -551,7 +549,7 @@ void retransmit_packet(struct client_settings *set, const uint8_t *serialized_pa
     
     sockaddr_in_size = sizeof(struct sockaddr_in);
     
-    if (sendto(set->server_fd, serialized_packet, packet_size, 0, (struct sockaddr *) &set->server_addr,
+    if (sendto(set->server_fd, serialized_packet, packet_size, 0, (struct sockaddr *) set->server_addr,
                sockaddr_in_size) == -1)
     {
         // Just tell em and go back to timeout.

@@ -53,7 +53,7 @@ void await_connect(struct server_settings *set);
 void connect_to(struct server_settings *set);
 
 /**
- * await_syn
+ * await_synchronize
  * <p>
  * Await a SYN message from a connecting client. Respond with a SYN/ACK.
  * </p>
@@ -61,7 +61,7 @@ void connect_to(struct server_settings *set);
  * @param send_packet - the packet struct to send
  * @param recv_packet - the packet struct to receive
  */
-void await_syn(struct server_settings *set, struct packet *send_packet);
+void await_synchronize(struct server_settings *set, struct packet *send_packet);
 
 /**
  * do_messaging.
@@ -218,7 +218,7 @@ void await_connect(struct server_settings *set)
 
 void connect_to(struct server_settings *set)
 {
-    set->connected = false;
+    set->connected = false; // TODO: nope fuck this
     
     struct packet *send_packet = NULL;
     struct packet *recv_packet = NULL;
@@ -237,17 +237,12 @@ void connect_to(struct server_settings *set)
     set->mm->mm_add(set->mm, send_packet);
     set->mm->mm_add(set->mm, recv_packet);
     
+    /* Zero the client addr struct to clear the information of the last-connected client. */
+    memset(set->client_addr, 0, sizeof(struct sockaddr_in));
+    
     send_packet->seq_num = MAX_SEQ;
     
-    if ((set->client_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in),
-                                                            __FILE__, __func__, __LINE__)) == NULL)
-    {
-        running = 0;
-        return;
-    }
-    set->mm-> mm_add(set->mm, set->client_addr);
-    
-    await_syn(set, send_packet);
+    await_synchronize(set, send_packet);
     
     if (!errno)
     {
@@ -256,10 +251,9 @@ void connect_to(struct server_settings *set)
     
     set->mm->mm_free(set->mm, send_packet);
     set->mm->mm_free(set->mm, recv_packet);
-    set->mm->mm_free(set->mm, set->client_addr);
 }
 
-void await_syn(struct server_settings *set, struct packet *send_packet)
+void await_synchronize(struct server_settings *set, struct packet *send_packet)
 {
     printf("Awaiting connections.\n\n");
     
@@ -278,11 +272,10 @@ void await_syn(struct server_settings *set, struct packet *send_packet)
             {
                 case EINTR:
                 {
-                    printf("Closing server.\n");
                     // running set to 0 with signal handler.
                     return;
                 }
-                case EAGAIN:
+                case EWOULDBLOCK: // TODO: unset the timeout when a client disconnects.
                 {
                     break;
                 }
@@ -339,7 +332,6 @@ void do_messaging(struct server_settings *set,
             {
                 case EINTR:
                 {
-                    printf("Closing server.\n");
                     // running set to 0 with signal handler.
                     return;
                 }
@@ -506,11 +498,13 @@ void send_resp(struct server_settings *set,
     
     set->mm->mm_free(set->mm, data_buffer);
     
-    // if from await_syn, next step is do_messaging. if from do_messaging, return to do_messaging.
+    // if from await_synchronize, next step is do_messaging. if from do_messaging, return to do_messaging.
 }
 
 void close_server(struct server_settings *set)
 {
+    printf("\nClosing server.\n");
+    
     if (set->server_fd != 0)
     {
         close(set->server_fd);
