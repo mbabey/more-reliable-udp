@@ -22,60 +22,6 @@
  * <p>
  * Stores global settings for the server.
  * <ul>
- * <li>server_ip: the server's ip address</li>
- * <li>server_port: the server's port number</li>
- * <li>server_fd: file descriptor of the socket listening for connections</li>
- * <li>accept_fd: file descriptor of the socket created when a connection is made</li>
- * <li>output_fd: file descriptor for the output</li>
- * </ul>
- * </p>
- */
-struct server_settings
-{
-    char      *server_ip;
-    in_port_t server_port;
-    int       server_fd;
-    int       output_fd;
-    bool      connected;
-    
-    struct timeval        *timeout;
-    struct sockaddr_in    *client_addr;
-    struct memory_manager *mm;
-};
-
-/**
- * client_settings
- * <p>
- * Stores global settings for the client.
- * <ul>
- * <li>server_ip: the server's ip address</li>
- * <li>server_port: the server's port number</li>
- * <li>server_fd: file descriptor of the socket connected to the server</li>
- * <li>is_file: if the client wishes to read a file to standard input</li>
- * </ul>
- * </p>
- */
-struct client_settings
-{
-    
-    char      *client_ip;
-    char      *server_ip;
-    int       server_fd;
-    in_port_t server_port;
-    bool is_file;
-    
-    struct sockaddr_in *client_addr;
-    struct sockaddr_in *server_addr;
-    
-    struct timeval        *timeout;
-    struct memory_manager *mem_manager;
-};
-
-/**
- * server_settings
- * <p>
- * Stores global settings for the server.
- * <ul>
  * <li>input_ip: the input connection ip address</li>
  * <li>output_ip: the output connection ip address</li>
  * <li>input_port: the input connection port number</li>
@@ -100,27 +46,6 @@ struct proxy_settings
     struct sockaddr_in    *output_addr;
     struct sockaddr_in    *input_addr;
     struct memory_manager *mem_manager;
-};
-
-/**
- * packet
- * <p>
- * Stores packet information.
- * <ul>
- * <li>flags: the flags set for the packet</li>
- * <li>seq_num: the sequence number of the packet</li>
- * <li>length: the number of bytes in the packet following these two bytes</li>
- * <li>payload: the byte data of the packet</li>
- * </ul>
- * </p>
- */
-struct packet
-{
-    uint8_t  flags;
-    uint8_t  seq_num;
-    uint16_t length;
-    
-    uint8_t *payload; // 'payload' is a cooler word than 'data'
 };
 
 #endif //RELIABLE_UDP_STRUCTS_H

@@ -34,6 +34,27 @@
 #define FLAG_FIN 8 // 0000 1000
 
 /**
+ * packet
+ * <p>
+ * Stores packet information.
+ * <ul>
+ * <li>flags: the flags set for the packet</li>
+ * <li>seq_num: the sequence number of the packet</li>
+ * <li>length: the number of bytes in the packet following these two bytes</li>
+ * <li>payload: the byte data of the packet</li>
+ * </ul>
+ * </p>
+ */
+struct packet
+{
+    uint8_t  flags;
+    uint8_t  seq_num;
+    uint16_t length;
+    
+    uint8_t *payload; // 'payload' is a cooler word than 'data'
+};
+
+/**
  * set_self_ip.
  * <p>
  * Get this host's IP address and attach it to the parameter char pointer pointer.
@@ -81,14 +102,14 @@ uint8_t *serialize_packet(struct packet *packet);
  */
 void set_string(char **str, const char *new_str);
 
-int do_open(const char *filename, int oflag);
-
-ssize_t do_read(int fd, void *buf, size_t nbytes);
-
-int do_close(const char *filename, int fd);
-
-ssize_t do_lseek(int fd, off_t offset, int whence);
-
+/**
+ * check_flags
+ * <p>
+ * Check the input flags; return a string representation.
+ * </p>
+ * @param flags - the flags
+ * @return a string representation of the flags
+ */
 const char *check_flags(uint8_t flags);
 
 #endif //LIBS_SELF_IP_H

@@ -1,10 +1,8 @@
 #include "../../libs/include/error.h"
-#include "../../libs/include/manager.h"
 #include "../../libs/include/util.h"
 #include "../include/client.h"
 #include "../include/setup.h"
 #include <arpa/inet.h>
-#include <fcntl.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <stdio.h>
@@ -17,11 +15,6 @@
  * The maximum number of timeouts to occur before the connection is deemed lost.
  */
 #define MAX_TIMEOUT 3
-
-/**
- * deprecated, soon to be removed.
- */
-#define OFFSET 0
 
 /**
  * The base timeout duration before retransmission.
@@ -160,16 +153,6 @@ bool process_response(struct client_settings *set, const uint8_t *recv_buffer, c
 void retransmit_packet(struct client_settings *set, const uint8_t *serialized_packet, size_t packet_size);
 
 /**
- * read_file
- * <p>
- * Read the content of a file into the buffer msg.
- * </p>
- * @param msg - the buffer into which the file should be read.
- * @param input - the input file name
- */
-char *read_file(char *msg, const char *input);
-
-/**
  * set_signal_handling
  * <p>
  * Setup a handler for the SIGINT signal.
@@ -277,9 +260,9 @@ void do_messaging(struct client_settings *set)
     
     while (running)
     {
-        msg = read_msg(set, msg);
+        msg = read_msg(set, msg); // TODO: this will be 'take input'
         
-        if (msg != NULL)
+        if (msg != NULL) // TODO: this will be 'is_turn'
         {
             /* Create a packet and increment the sequence number. */
             create_packet(&send_packet, FLAG_PSH, seq++, strlen(msg), (uint8_t *) msg);
@@ -290,7 +273,7 @@ void do_messaging(struct client_settings *set)
             set->mem_manager->mm_free(set->mem_manager, msg);
         }
         
-        msg = NULL;
+        msg = NULL; // TODO: input = NULL
     }
     
     if (!errno)
@@ -384,8 +367,6 @@ void send_msg(struct client_settings *set, struct packet *send_packet)
     if (send_packet->flags != FLAG_ACK)
     {
         await_response(set, serialized_packet, packet_size); // TODO: decouple this
-        
-        
     }
     
     set->mem_manager->mm_free(set->mem_manager, serialized_packet);

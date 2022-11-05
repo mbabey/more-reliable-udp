@@ -7,7 +7,6 @@
 
 #include <stddef.h>
 
-
 struct memory_manager
 {
     struct memory_address *head;
