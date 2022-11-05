@@ -417,7 +417,7 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
     {
         set->connected = true; // TODO: this is busted for multiple clients (maybe?). Each thread will need it's own connected (maybe?)
     }
-    // FIN/ACK || end of 3-way handshake || additional connect attempt
+    // FIN/ACK || end of 3-way do_synchronize || additional connect attempt
     if ((send_packet->flags == (FLAG_FIN | FLAG_ACK) || // NOLINT(hicpp-signed-bitwise) : highest order bit unused
          recv_packet->flags == FLAG_ACK ||
          recv_packet->flags == FLAG_SYN) && set->connected)

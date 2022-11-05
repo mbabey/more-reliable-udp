@@ -18,4 +18,13 @@
  */
 void run_client(int argc, char *argv[], struct client_settings *settings);
 
+/**
+ * close_client
+ * <p>
+ * Close the client socket if open, and free all memory.
+ * </p>
+ * @param set - the client settings
+ */
+void close_client(struct client_settings *set);
+
 #endif //RELIABLE_UDP_CLIENT_H

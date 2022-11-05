@@ -85,7 +85,7 @@ int do_open(const char *filename, int oflag);
 
 ssize_t do_read(int fd, void *buf, size_t nbytes);
 
-void do_close(const char *filename, int fd);
+int do_close(const char *filename, int fd);
 
 ssize_t do_lseek(int fd, off_t offset, int whence);
 

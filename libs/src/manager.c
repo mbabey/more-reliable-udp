@@ -7,11 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 /**
  * mm_add
  * <p>
- * Add a new memory address node to the memory manager linked list.
+ * Add a new memory address node to the memory manager linked list. The memory address will not be added if it is
+ * already in the linked list.
  * </p>
  * @param mem - the memory to add.
  * @return - the address of the node added, NULL on failure
@@ -110,12 +112,22 @@ void *mm_add(struct memory_manager *mem_manager, void *mem)
         return ma;
     }
     
+    bool exists = false;
+    
     ma_cur = mem_manager->head;
     while (ma_cur->next != NULL)
     {
+        if (ma_cur->addr == ma->addr)
+        {
+            exists = true;
+            break;
+        }
         ma_cur = ma_cur->next;
     }
-    ma_cur->next = ma;
+    if (!exists)
+    {
+        ma_cur->next = ma;
+    }
     
     return ma;
 }
@@ -218,6 +230,5 @@ void alloc_err(const char *file, const char *func, const size_t line, int err_co
     const char *msg;
     
     msg = strerror(err_code); // NOLINT(concurrency-mt-unsafe)
-    fprintf(stderr, "Error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code, msg); // NOLINT(cert-err33-c)
-    errno = ENOTRECOVERABLE;
+    fprintf(stderr, "Memory allocation error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code, msg); // NOLINT(cert-err33-c)
 }

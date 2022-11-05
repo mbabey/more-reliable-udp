@@ -117,12 +117,21 @@ void set_string(char **str, const char *new_str)
 {
     size_t buf = strlen(new_str) + 1;
     
+    
     if (!*str) // Double negative: true if the string is NULL
     {
-        *str = (char *) s_malloc(buf, __FILE__, __func__, __LINE__);
+        errno = 0;
+        if((*str = (char *) malloc(buf)) == NULL)
+        {
+            return;
+        }
     } else
     {
-        *str = (char *) s_realloc(*str, buf, __FILE__, __func__, __LINE__);
+        errno = 0;
+        if((*str = (char *) realloc(*str, buf)) == NULL)
+        {
+            return;
+        }
     }
     
     strcpy(*str, new_str);
@@ -147,39 +156,47 @@ ssize_t do_read(int fd, void *buf, size_t nbytes)
 {
     ssize_t result;
     
+    errno = 0;
     if ((result = read(fd, buf, nbytes)) == -1)
     {
         const char *msg;
         
         msg = strerror(errno); // NOLINT(concurrency-mt-unsafe) : no threads here
         fprintf(stderr, "Error reading %d: %s\n", fd, msg); // NOLINT (cert-err33-c)
+        errno = ENOTRECOVERABLE;
     }
     
     return result;
 }
 
-void do_close(const char *filename, int fd)
+int do_close(const char *filename, int fd)
 {
     errno = 0;
-    if (close(fd) == -1)
+    int ret_val;
+    
+    if ((ret_val = close(fd)) == -1)
     {
         const char *msg;
         
         msg = strerror(errno); // NOLINT(concurrency-mt-unsafe) : no threads here
         fprintf(stderr, "Error closing %s: %s\n", filename, msg); // NOLINT (cert-err33-c)
+        errno = ENOTRECOVERABLE;
     }
+    
+    return ret_val;
 }
 
 ssize_t do_lseek(int fd, off_t offset, int whence)
 {
     ssize_t result;
-    
+    errno = 0;
     if ((result = lseek(fd, offset, whence)) == -1)
     {
         const char *msg;
         
         msg = strerror(errno); // NOLINT(concurrency-mt-unsafe) : no threads here
         fprintf(stderr, "Error seeking %d: %s\n", fd, msg); // NOLINT (cert-err33-c)
+        errno = ENOTRECOVERABLE;
     }
     
     return result;
