@@ -176,10 +176,7 @@ void run_client(int argc, char *argv[], struct client_settings *settings)
     init_def_state(argc, argv, settings);
     
     open_client(settings);
-    if (!errno)
-    {
-        do_messaging(settings);
-    }
+    if (!errno) do_messaging(settings);
 }
 
 void open_client(struct client_settings *set)
@@ -234,12 +231,10 @@ void do_synchronize(struct client_settings *set)
     
     create_packet(&s_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     send_msg(set, &s_packet);
-    await_response(set, &s_packet, FLAG_SYN | FLAG_ACK);
-    if (!errno)
-    {
-        create_packet(&s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
-        send_msg(set, &s_packet);
-    }
+    if (!errno) await_response(set, &s_packet, FLAG_SYN | FLAG_ACK);
+    
+    create_packet(&s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
+    if (!errno) send_msg(set, &s_packet);
 }
 
 void do_messaging(struct client_settings *set)
@@ -252,17 +247,14 @@ void do_messaging(struct client_settings *set)
     
     struct sigaction sa;
     set_signal_handling(&sa);
-    if (errno)
-    {
-        return;
-    }
+    
+    if (errno) return; /* set_signal_handling may have failed. */
+    
     running = 1;
     
     while (running)
     {
         msg = read_msg(set, msg); // TODO(maxwell): this will be 'take input'
-        
-        
         
         if (msg != NULL) // TODO(maxwell): this will be 'is_turn'
         {
@@ -279,10 +271,7 @@ void do_messaging(struct client_settings *set)
         msg = NULL; // TODO(maxwell): input = NULL
     }
     
-    if (!errno)
-    {
-        do_fin_seq(set);
-    }
+    if (!errno) do_fin_seq(set);
 }
 
 void do_fin_seq(struct client_settings *set)
@@ -291,15 +280,12 @@ void do_fin_seq(struct client_settings *set)
     
     create_packet(&s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
     send_msg(set, &s_packet);
-    await_response(set, &s_packet, FLAG_FIN | FLAG_ACK);
-    await_response(set, &s_packet, FLAG_FIN);
-    if (!errno)
-    {
-        create_packet(&s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0,
-                      NULL); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
-        send_msg(set, &s_packet);
-        await_response(set, &s_packet, FLAG_FIN);
-    }
+    if (!errno) await_response(set, &s_packet, FLAG_FIN | FLAG_ACK);
+    if (!errno) await_response(set, &s_packet, FLAG_FIN);
+    
+    create_packet(&s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
+    if (!errno) send_msg(set, &s_packet);
+    if (!errno) await_response(set, &s_packet, FLAG_FIN);
 }
 
 char *read_msg(struct client_settings *set, char *msg) // TODO(maxwell): deprecated, here for testing purposes
@@ -383,6 +369,7 @@ void await_response(struct client_settings *set, struct packet *s_packet, uint8_
         running = 0;
         return;
     }
+    set->mem_manager->mm_add(set->mem_manager, serialized_packet);
     
     set->timeout->tv_sec = BASE_TIMEOUT;
     
@@ -396,6 +383,7 @@ void await_response(struct client_settings *set, struct packet *s_packet, uint8_
     {
         printf("Awaiting response with flags: %s\n\n", check_flags(recv_flags));
         
+        /* Update our socket's timeout. */
         if (setsockopt(set->server_fd,
                        SOL_SOCKET, SO_RCVTIMEO, (const char *) set->timeout, sizeof(struct timeval)) == -1)
         {
@@ -404,18 +392,18 @@ void await_response(struct client_settings *set, struct packet *s_packet, uint8_
             return;
         }
         
-        memset(recv_buffer, 0, BUF_LEN);
+        memset(recv_buffer, 0, BUF_LEN); /* Clear our reception buffer. */
         
         if (recvfrom(set->server_fd, recv_buffer, BUF_LEN, 0,
                      (struct sockaddr *) set->client_addr, &sockaddr_in_size) == -1)
         {
             switch (errno)
             {
-                case EINTR:
+                case EINTR: /* If the user presses ctrl+C */
                 {
                     return;
                 }
-                case EWOULDBLOCK:
+                case EWOULDBLOCK: /* If the socket times out */
                 {
                     ++num_timeouts;
                     
@@ -428,42 +416,30 @@ void await_response(struct client_settings *set, struct packet *s_packet, uint8_
                     
                     break;
                 }
-                default:
+                default: /* Any other error is not predicted */
                 {
                     fatal_errno(__FILE__, __func__, __LINE__, errno);
                     running = 0;
                     return;
                 }
             }
-        }
-        
-        // Check the seq num and flags in the recv_buffer. If either is invalid, we have the wrong packet.
-        correct_packet = *(recv_buffer + 1) == *(serialized_packet + 1) && *recv_buffer == recv_flags;
-        
-        if (!correct_packet)
+        } else
         {
-            retransmit_packet(set, serialized_packet, packet_size);
+            num_timeouts = 0; /* Reset num_timeouts: a packet was received. */
+            
+            /* Check the seq num and flags in the recv_buffer. If either is invalid, we have the wrong packet. */
+            correct_packet = *(recv_buffer + 1) == *(serialized_packet + 1) && *recv_buffer == recv_flags;
+    
+            if (!correct_packet)
+            {
+                retransmit_packet(set, serialized_packet, packet_size); /* Can error, but it's okay. */
+            }
         }
-    } while (!correct_packet); // while the packet we received does not have the flags we are looking for
+    } while (!correct_packet); /* While the packet we received is not correct */
     
-    process_response(set, recv_buffer);
+    process_response(set, recv_buffer); /* Once we have the correct packet, we will process it */
     
-    serialized_packet = NULL;
-}
-
-void process_response(struct client_settings *set, const uint8_t *recv_buffer)
-{
-    printf("Received response:\n\tFlags: %s\n", check_flags(*recv_buffer));
-    
-    if (*recv_buffer == FLAG_PSH)
-    {
-        // means game board update, so update UI
-    }
-    
-    if (*recv_buffer == (FLAG_PSH | FLAG_TRN))
-    {
-        // means update turn status; true --> false, false --> true
-    }
+    set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
 
 void handle_recv_timeout(struct client_settings *set,
@@ -509,6 +485,21 @@ void retransmit_packet(struct client_settings *set, const uint8_t *serialized_pa
     }
     
     printf("Sent packet:\n\tFlags: %s\n\tLength: %zu\n\n", check_flags(*serialized_packet), packet_size);
+}
+
+void process_response(struct client_settings *set, const uint8_t *recv_buffer) // TODO(maxwell): Will eventually set errno
+{
+    printf("Received response:\n\tFlags: %s\n", check_flags(*recv_buffer));
+    
+    if (*recv_buffer == FLAG_PSH)
+    {
+        // means game board update, so update UI
+    }
+    
+    if (*recv_buffer == (FLAG_PSH | FLAG_TRN))
+    {
+        // means update turn status; true --> false, false --> true
+    }
 }
 
 void create_packet(struct packet *packet, uint8_t flag, uint8_t seq_num, uint16_t len, uint8_t *payload)
