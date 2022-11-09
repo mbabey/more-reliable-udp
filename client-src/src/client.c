@@ -213,6 +213,11 @@ void open_client(struct client_settings *set)
         return;
     }
     
+//    if (bind(set->server_fd, (struct sockaddr *) set->client_addr, sizeof(struct sockaddr_in)) == -1)
+//    {
+//        return;
+//    }
+    
     do_synchronize(set);
 }
 
