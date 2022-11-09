@@ -263,7 +263,7 @@ void do_messaging(struct client_settings *set)
             
             printf("Sending message: %s\n\n", msg);
             send_msg(set, &s_packet);
-            await_response(set, &s_packet, FLAG_ACK);
+            if (!errno) await_response(set, &s_packet, FLAG_ACK);
             
             set->mem_manager->mm_free(set->mem_manager, msg);
         }
@@ -313,7 +313,7 @@ char *read_msg(struct client_settings *set, char *msg) // TODO(maxwell): depreca
     input[strcspn(input, "\n")] = '\0';
     
     set_string(&msg, input);
-    if (errno == ENOMEM) /* If a catastrophic error occurred in or set_string. */
+    if (errno == ENOMEM) /* If a catastrophic error occurred in set_string. */
     {
         running = 0;
         return NULL;
