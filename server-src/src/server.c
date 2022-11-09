@@ -53,7 +53,7 @@ void await_connect(struct server_settings *set);
 void connect_to(struct server_settings *set);
 
 /**
- * await_synchronize
+ * do_accept
  * <p>
  * Await a SYN message from a connecting client. Respond with a SYN/ACK.
  * </p>
@@ -61,7 +61,7 @@ void connect_to(struct server_settings *set);
  * @param send_packet - the packet struct to send
  * @param recv_packet - the packet struct to receive
  */
-void await_synchronize(struct server_settings *set, struct packet *send_packet);
+void do_accept(struct server_settings *set, struct packet *send_packet);
 
 /**
  * do_messaging.
@@ -87,7 +87,7 @@ void do_messaging(struct server_settings *set,
 uint8_t modify_timeout(uint8_t timeout_count);
 
 /**
- * recv_message.
+ * decode_message.
  * <p>
  * Load the bytes of the data buffer into the receive packet struct fields.
  * </p>
@@ -95,10 +95,7 @@ uint8_t modify_timeout(uint8_t timeout_count);
  * @param send_packet - the packet struct to send
  * @param recv_packet - the packet struct to receive
  */
-void recv_message(struct server_settings *set,
-                  struct packet *send_packet,
-                  struct packet *recv_packet,
-                  const uint8_t *data_buffer);
+void decode_message(struct server_settings *set, struct packet *recv_packet, const uint8_t *data_buffer);
 
 /**
  * process_message
@@ -130,7 +127,7 @@ void process_payload(struct server_settings *set, struct packet *recv_packet);
  * @param seq_num - the sequence number to set in the send packet
  * @param send_packet - the packet struct to send
  */
-void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num);
+void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
 
 /**
  * send_resp
@@ -166,11 +163,10 @@ static void signal_handler(int sig);
 void run(int argc, char *argv[], struct server_settings *set)
 {
     init_def_state(argc, argv, set);
+    
     open_server(set);
-    if (!errno)
-    {
-        await_connect(set);
-    }
+    
+    if (!errno) await_connect(set);
     
     // Return to main.
 }
@@ -238,22 +234,19 @@ void connect_to(struct server_settings *set)
     set->mm->mm_add(set->mm, recv_packet);
     
     /* Zero the client addr struct to clear the information of the last-connected client. */
-    memset(set->client_addr, 0, sizeof(struct sockaddr_in));
+    memset(set->client_addr, 0, sizeof(struct sockaddr_in)); // TODO: this can be local to the recv-reply
     
     send_packet->seq_num = MAX_SEQ;
     
-    await_synchronize(set, send_packet);
+    do_accept(set, send_packet);
     
-    if (!errno)
-    {
-        do_messaging(set, send_packet, recv_packet);
-    }
+    if (!errno) do_messaging(set, send_packet, recv_packet);
     
     set->mm->mm_free(set->mm, send_packet);
     set->mm->mm_free(set->mm, recv_packet);
 }
 
-void await_synchronize(struct server_settings *set, struct packet *send_packet)
+void do_accept(struct server_settings *set, struct packet *send_packet)
 {
     printf("Awaiting connections.\n\n");
     
@@ -291,8 +284,8 @@ void await_synchronize(struct server_settings *set, struct packet *send_packet)
     
     printf("Client connected from: %s\n\n",
            inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
-
-    create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+    
+    create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
     send_resp(set, send_packet);
     // join thread, return
 }
@@ -352,9 +345,9 @@ void do_messaging(struct server_settings *set,
         
         if (bytes_recv > 0)
         {
-            printf("Message received: bytes: %ld\n\n", bytes_recv);
             timeout_count = 0;
-            recv_message(set, send_packet, recv_packet, buffer);
+            decode_message(set, recv_packet, buffer);
+            if (!errno) process_message(set, send_packet, recv_packet);
         }
         
     } while (timeout_count < MAX_TIMEOUTS_SERVER &&
@@ -384,10 +377,7 @@ uint8_t modify_timeout(uint8_t timeout_count)
     }
 }
 
-void recv_message(struct server_settings *set,
-                  struct packet *send_packet,
-                  struct packet *recv_packet,
-                  const uint8_t *data_buffer)
+void decode_message(struct server_settings *set, struct packet *recv_packet, const uint8_t *data_buffer)
 {
     deserialize_packet(recv_packet, data_buffer);
     if (errno == ENOTRECOVERABLE)
@@ -399,8 +389,6 @@ void recv_message(struct server_settings *set,
     
     printf("Received packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
            check_flags(recv_packet->flags), recv_packet->seq_num);
-    
-    process_message(set, send_packet, recv_packet);
 }
 
 void process_message(struct server_settings *set, struct packet *send_packet, struct packet *recv_packet)
@@ -420,12 +408,11 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
         (recv_packet->seq_num == (uint8_t) (send_packet->seq_num + 1))) // Why I have to cast this, C??
     {
         process_payload(set, recv_packet);
-        create_resp(send_packet, FLAG_ACK, recv_packet->seq_num);
+        create_resp(send_packet, FLAG_ACK, recv_packet->seq_num, 0, NULL);
     }
     if (recv_packet->flags == FLAG_FIN)
     {
-        create_resp(send_packet, FLAG_FIN | FLAG_ACK,
-                    MAX_SEQ); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+        create_resp(send_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
     }
     
     send_resp(set, send_packet);
@@ -443,7 +430,7 @@ void process_payload(struct server_settings *set, struct packet *recv_packet)
     recv_packet->payload = NULL;
 }
 
-void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num)
+void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
 {
     memset(send_packet, 0, sizeof(struct packet));
     
@@ -498,7 +485,7 @@ void send_resp(struct server_settings *set,
     
     set->mm->mm_free(set->mm, data_buffer);
     
-    // if from await_synchronize, next step is do_messaging. if from do_messaging, return to do_messaging.
+    // if from do_accept, next step is do_messaging. if from do_messaging, return to do_messaging.
 }
 
 void close_server(struct server_settings *set)

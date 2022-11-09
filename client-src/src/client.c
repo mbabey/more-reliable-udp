@@ -70,13 +70,13 @@ void do_fin_seq(struct client_settings *set);
  * <p>
  * Create a packet with flag = flag, sequence number = seq_num, length = len, and payload = payload.
  * </p>
- * @param packet - the packet to construct.
- * @param flag - the flags
+ * @param send_packet - the packet to construct.
+ * @param flags - the flags
  * @param seq_num - the sequence number
  * @param len - the length
  * @param payload - the payload
  */
-void create_packet(struct packet *packet, uint8_t flag, uint8_t seq_num, uint16_t len, uint8_t *payload);
+void create_packet(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
 
 /**
  * send_msg
@@ -406,14 +406,11 @@ void await_response(struct client_settings *set, struct packet *s_packet, uint8_
                 case EWOULDBLOCK: /* If the socket times out */
                 {
                     ++num_timeouts;
-                    
                     handle_recv_timeout(set, serialized_packet, packet_size, num_timeouts);
-                    
                     if (num_timeouts >= MAX_TIMEOUT)
                     {
                         return;
                     }
-                    
                     break;
                 }
                 default: /* Any other error is not predicted */
@@ -502,14 +499,14 @@ void process_response(struct client_settings *set, const uint8_t *recv_buffer) /
     }
 }
 
-void create_packet(struct packet *packet, uint8_t flag, uint8_t seq_num, uint16_t len, uint8_t *payload)
+void create_packet(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
 {
-    memset(packet, 0, sizeof(struct packet));
+    memset(send_packet, 0, sizeof(struct packet));
     
-    packet->flags   = flag;
-    packet->seq_num = seq_num;
-    packet->length  = len;
-    packet->payload = payload;
+    send_packet->flags   = flags;
+    send_packet->seq_num = seq_num;
+    send_packet->length  = len;
+    send_packet->payload = payload;
 }
 
 void close_client(struct client_settings *set)
