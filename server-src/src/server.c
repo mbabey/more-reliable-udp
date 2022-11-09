@@ -252,7 +252,6 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     
     socklen_t sockaddr_in_size;
     uint8_t   buffer[BUF_LEN];
-    // create thread
     
     sockaddr_in_size = sizeof(struct sockaddr_in);
     do /* This loop will hang until a SYN packet is received. It is essentially accept. */
@@ -285,9 +284,8 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     printf("Client connected from: %s\n\n",
            inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
-    create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+    create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
     send_resp(set, send_packet);
-    // join thread, return
 }
 
 void do_messaging(struct server_settings *set,
@@ -350,8 +348,7 @@ void do_messaging(struct server_settings *set,
             if (!errno) process_message(set, send_packet, recv_packet);
         }
         
-    } while (timeout_count < MAX_TIMEOUTS_SERVER &&
-             *buffer != (FLAG_FIN | FLAG_ACK)); // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+    } while (timeout_count < MAX_TIMEOUTS_SERVER && *buffer != (FLAG_FIN | FLAG_ACK));
 }
 
 uint8_t modify_timeout(uint8_t timeout_count)
@@ -398,7 +395,7 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
         set->connected = true; // TODO: this is busted for multiple clients (maybe?). Each thread will need it's own connected (maybe?)
     }
     // FIN/ACK || end of 3-way do_synchronize || additional connect attempt
-    if ((send_packet->flags == (FLAG_FIN | FLAG_ACK) || // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+    if ((send_packet->flags == (FLAG_FIN | FLAG_ACK) ||
          recv_packet->flags == FLAG_ACK ||
          recv_packet->flags == FLAG_SYN) && set->connected)
     {
@@ -466,7 +463,7 @@ void send_resp(struct server_settings *set,
         return;
     }
     
-    if (send_packet->flags == (FLAG_FIN | FLAG_ACK)) // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+    if (send_packet->flags == (FLAG_FIN | FLAG_ACK))
     {
         *data_buffer = FLAG_FIN;
         if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) set->client_addr,
