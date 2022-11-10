@@ -80,25 +80,3 @@ void create_pack(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t
     packet->length = len;
     packet->payload = payload;
 }
-
-void set_signal_handling(struct sigaction *sa)
-{
-    sigemptyset(&sa->sa_mask);
-    sa->sa_flags   = 0;
-    sa->sa_handler = signal_handler;
-    if (sigaction(SIGINT, sa, 0) == -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-    }
-}
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-void signal_handler(int sig)
-{
-    running = 0;
-}
-
-#pragma GCC diagnostic pop
-

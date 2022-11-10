@@ -97,24 +97,4 @@ void decode_message(struct server_settings *set, struct packet *recv_packet, con
  */
 void create_pack(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
 
-/**
- * set_signal_handling
- * <p>
- * Setup a handler for the SIGINT signal.
- * </p>
- * @author D'Arcy Smith
- * @param sa - the sigaction for setup
- */
-void set_signal_handling(struct sigaction *sa);
-
-/**
- * signal_handler
- * <p>
- * Callback function for the signal handler. Will set running to 0 upon signal.
- * </p>
- * @param sig - the signal
- * @author D'Arcy Smith
- */
-void signal_handler(int sig);
-
 #endif //RELIABLE_UDP_SERVER_UTIL_HPP

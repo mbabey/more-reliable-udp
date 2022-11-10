@@ -104,6 +104,26 @@ void process_payload(struct server_settings *set, struct packet *recv_packet);
  */
 void send_resp(struct server_settings *set, struct conn_client *client, struct packet *s_packet);
 
+/**
+ * set_signal_handling
+ * <p>
+ * Setup a handler for the SIGINT signal.
+ * </p>
+ * @author D'Arcy Smith
+ * @param sa - the sigaction for setup
+ */
+static void set_signal_handling(struct sigaction *sa);
+
+/**
+ * signal_handler
+ * <p>
+ * Callback function for the signal handler. Will set running to 0 upon signal.
+ * </p>
+ * @param sig - the signal
+ * @author D'Arcy Smith
+ */
+static void signal_handler(int sig);
+
 int setup_socket(char *ip, in_port_t port);
 
 void run(int argc, char *argv[], struct server_settings *set)
@@ -438,3 +458,24 @@ void close_server(struct server_settings *set)
     }
     free_mem_manager(set->mm);
 }
+
+static void set_signal_handling(struct sigaction *sa)
+{
+    sigemptyset(&sa->sa_mask);
+    sa->sa_flags   = 0;
+    sa->sa_handler = signal_handler;
+    if (sigaction(SIGINT, sa, 0) == -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+    }
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+static void signal_handler(int sig)
+{
+    running = 0;
+}
+
+#pragma GCC diagnostic pop
