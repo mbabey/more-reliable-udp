@@ -30,8 +30,16 @@ struct server_settings
     bool      connected;
     
     struct timeval        *timeout;
-    struct sockaddr_in    *client_addr;
+    struct conn_client    *first_conn_client;
     struct memory_manager *mm;
+};
+
+struct conn_client
+{
+    int c_fd;
+    struct sockaddr_in *addr;
+    
+    struct conn_client *next;
 };
 
 /**

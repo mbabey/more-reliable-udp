@@ -67,10 +67,6 @@ void set_defaults(struct server_settings *set)
     {
         set->mm->mm_add(set->mm, set->timeout);
     }
-    if ((set->client_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__)) != NULL)
-    {
-        set->mm->mm_add(set->mm, set->client_addr);
-    }
     if (errno == ENOTRECOVERABLE)
     {
         free_mem_manager(set->mm);

@@ -64,6 +64,16 @@ void connect_to(struct server_settings *set);
 void do_accept(struct server_settings *set, struct packet *send_packet);
 
 /**
+ * alloc_conn_client
+ * <p>
+ * Allocate memory for and return a pointer to a new connected client node. Add the new client to the
+ * server settings linked list of connected clients and add the memory to the memory manager.
+ * </p>
+ * @return a pointer to the newly allocated connected client struct.
+ */
+struct conn_client *alloc_conn_client(struct server_settings *set);
+
+/**
  * do_messaging.
  * <p>
  * Await a message from the connected client. If no message is received and a timeout occurs,
@@ -214,36 +224,18 @@ void await_connect(struct server_settings *set)
 
 void connect_to(struct server_settings *set)
 {
-    set->connected = false; // TODO: nope fuck this
+    set->connected = false; // TODO: instead use the ip address of the person it is coming from
     
-    struct packet *send_packet = NULL;
-    struct packet *recv_packet = NULL;
-    
-    if ((send_packet = (struct packet *) s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__)) == NULL)
-    {
-        running = 0;
-        return;
-    }
-    if ((recv_packet = (struct packet *) s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__)) == NULL)
-    {
-        running = 0;
-        return;
-    }
-    
-    set->mm->mm_add(set->mm, send_packet);
-    set->mm->mm_add(set->mm, recv_packet);
+    struct packet send_packet;
+    struct packet recv_packet;
     
     /* Zero the client addr struct to clear the information of the last-connected client. */
-    memset(set->client_addr, 0, sizeof(struct sockaddr_in)); // TODO: this can be local to the recv-reply
+//    memset(set->client_addr, 0, sizeof(struct sockaddr_in)); // TODO: this can be local to the recv-reply
     
-    send_packet->seq_num = MAX_SEQ;
+    do_accept(set, &send_packet);
     
-    do_accept(set, send_packet);
+    if (!errno) do_messaging(set, &send_packet, &recv_packet);
     
-    if (!errno) do_messaging(set, send_packet, recv_packet);
-    
-    set->mm->mm_free(set->mm, send_packet);
-    set->mm->mm_free(set->mm, recv_packet);
 }
 
 void do_accept(struct server_settings *set, struct packet *send_packet)
@@ -253,12 +245,18 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     socklen_t sockaddr_in_size;
     uint8_t   buffer[BUF_LEN];
     
+    struct conn_client *new_client = alloc_conn_client(NULL, 0);
+    
+    if (set->first_conn_client == NULL)
+    
+    
+    send_packet->seq_num = MAX_SEQ;
     sockaddr_in_size = sizeof(struct sockaddr_in);
     do /* This loop will hang until a SYN packet is received. It is essentially accept. */
     {
         errno = 0;
         if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0,
-                      (struct sockaddr *) set->client_addr, &sockaddr_in_size)) == -1)
+                      (struct sockaddr *) new_client->addr, &sockaddr_in_size)) == -1)
         {
             switch (errno)
             {
@@ -286,6 +284,43 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     
     create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
     send_resp(set, send_packet);
+}
+
+struct conn_client *alloc_conn_client(struct server_settings *set)
+{
+    struct conn_client *new_client;
+    if ((new_client  = s_calloc(1, sizeof(struct conn_client), __FILE__, __func__, __LINE__)) == NULL)
+    {
+        running = 0;
+        return NULL;
+    }
+    
+    if ((new_client->addr = s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__)) == NULL)
+    {
+        free(new_client);
+        running = 0;
+        return NULL;
+    }
+    
+    set->mm->mm_add(set->mm, new_client->addr); /* Add the new client to the memory manager. */
+    set->mm->mm_add(set->mm, new_client);
+    
+    if (set->first_conn_client == NULL) /* Add the new client to the back of the connected client list. */
+    {
+        set->first_conn_client = new_client;
+    } else
+    {
+        struct conn_client *curr_node;
+        
+        curr_node = set->first_conn_client;
+        while (curr_node->next != NULL)
+        {
+            curr_node = curr_node->next;
+        }
+        curr_node->next = new_client;
+    }
+    
+    return new_client;
 }
 
 void do_messaging(struct server_settings *set,
