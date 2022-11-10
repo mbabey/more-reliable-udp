@@ -57,7 +57,7 @@ void alloc_err(const char *file, const char *func, size_t line,
 struct memory_address
 {
     void *addr;
-    void *next;
+    struct memory_address *next;
 };
 
 struct memory_manager *init_mem_manager(void)

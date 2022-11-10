@@ -27,14 +27,14 @@
 static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
 
 /**
- * open_client
+ * open_client_socket
  * <p>
  * Set up the socket for the client. Set up the sockaddr structs for the client and the server. Bind the socket
  * to the client sockaddr.
  * </p>
  * @param set - the set for the client
  */
-void open_client(struct client_settings *set);
+void open_client_socket(struct client_settings *set);
 
 /**
  * do_synchronize
@@ -171,31 +171,31 @@ void run_client(int argc, char *argv[], struct client_settings *settings)
 {
     init_def_state(argc, argv, settings);
     
-    open_client(settings);
+    open_client_socket(settings);
     if (!errno) do_messaging(settings);
 }
 
-void open_client(struct client_settings *set)
+void open_client_socket(struct client_settings *set)
 {
-    if ((set->client_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in),
-                                                            __FILE__, __func__, __LINE__)) == NULL)
-    {
-        return;
-    }
+//    if ((set->client_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in),
+//                                                            __FILE__, __func__, __LINE__)) == NULL)
+//    {
+//        return;
+//    }
     if ((set->server_addr = (struct sockaddr_in *) s_calloc(1, sizeof(struct sockaddr_in),
                                                             __FILE__, __func__, __LINE__)) == NULL)
     {
         return;
     }
-    set->mem_manager->mm_add(set->mem_manager, set->client_addr);
+//    set->mem_manager->mm_add(set->mem_manager, set->client_addr);
     set->mem_manager->mm_add(set->mem_manager, set->server_addr);
     
-    set->client_addr->sin_family           = AF_INET;
-    set->client_addr->sin_port             = 0; // Ephemeral port.
-    if ((set->client_addr->sin_addr.s_addr = inet_addr(set->client_ip)) == (in_addr_t) -1)
-    {
-        return;
-    }
+//    set->client_addr->sin_family           = AF_INET; // Do I care who I am??
+//    set->client_addr->sin_port             = 0; // Ephemeral port.
+//    if ((set->client_addr->sin_addr.s_addr = inet_addr(set->client_ip)) == (in_addr_t) -1)
+//    {
+//        return;
+//    }
     
     set->server_addr->sin_family           = AF_INET;
     set->server_addr->sin_port             = htons(set->server_port);
@@ -326,16 +326,15 @@ void send_msg(struct client_settings *set, struct packet *s_packet)
     size_t    packet_size;
     
     sockaddr_in_size  = sizeof(struct sockaddr_in);
-    serialized_packet = serialize_packet(s_packet);
+    serialized_packet = serialize_packet(s_packet); /* Serialize the packet to send. */
     if (errno == ENOTRECOVERABLE)
     {
         running = 0;
         return;
     }
     set->mem_manager->mm_add(set->mem_manager, serialized_packet);
-    
-    packet_size = sizeof(s_packet->flags) + sizeof(s_packet->seq_num) + sizeof(s_packet->length) +
-                  s_packet->length;
+    packet_size = sizeof(s_packet->flags) + sizeof(s_packet->seq_num)
+            + sizeof(s_packet->length) + s_packet->length;
     
     if (sendto(set->server_fd, serialized_packet, packet_size, 0,
                (struct sockaddr *) set->server_addr, sockaddr_in_size) == -1)
@@ -376,9 +375,10 @@ void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t rec
         }
         
         memset(recv_buffer, 0, BUF_LEN); /* Clear our reception buffer. */
-        
+    
+        /* set->server_addr will be overwritten when a message is received on the socket set->server_fd */
         if (recvfrom(set->server_fd, recv_buffer, BUF_LEN, 0,
-                     (struct sockaddr *) set->client_addr, &sockaddr_in_size) == -1)
+                     (struct sockaddr *) set->server_addr, &sockaddr_in_size) == -1)
         {
             switch (errno)
             {
