@@ -69,8 +69,7 @@ void do_accept(struct server_settings *set, struct packet *send_packet);
  * @param send_packet - the packet struct to send
  * @param recv_packet - the packet struct to receive
  */
-void do_messaging(struct server_settings *set,
-                  struct packet *send_packet,
+void do_messaging(struct server_settings *set, struct conn_client *client, struct packet *send_packet,
                   struct packet *recv_packet);
 
 /**
@@ -82,7 +81,8 @@ void do_messaging(struct server_settings *set,
  * @param send_packet - the packet struct to send
  * @param recv_packet - the packet struct to receive
  */
-void process_message(struct server_settings *set, struct packet *send_packet, struct packet *recv_packet);
+void process_message(struct server_settings *set, struct conn_client *client, struct packet *send_packet,
+                     struct packet *recv_packet);
 
 /**
  * process_payload
@@ -92,7 +92,7 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
  * @param set - the server settings
  * @param recv_packet - the packet struct to receive
  */
-void process_payload(struct server_settings *set, struct packet *recv_packet);
+void process_payload(struct server_settings *set, struct conn_client *client, struct packet *recv_packet);
 
 /**
  * send_resp
@@ -102,8 +102,7 @@ void process_payload(struct server_settings *set, struct packet *recv_packet);
  * @param set - the server settings
  * @param send_packet - the packet struct to send
  */
-void send_resp(struct server_settings *set,
-               struct packet *send_packet);
+void send_resp(struct server_settings *set, struct conn_client *client, struct packet *send_packet);
 
 int setup_socket(char *ip, in_port_t port);
 
@@ -216,7 +215,7 @@ void connect_to(struct server_settings *set)
         {
             if (FD_ISSET(curr_cli->c_fd, &set->readfds))
             {
-                if (!errno) do_messaging(set, &send_packet, &recv_packet);
+                if (!errno) do_messaging(set, NULL, &send_packet, &recv_packet);
             }
             curr_cli = curr_cli->next; /* Go to next client in list. */
         }
@@ -238,10 +237,8 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     sockaddr_in_size = sizeof(struct sockaddr_in);
     do /* This loop will hang until a SYN packet is received. It is essentially accept. */
     {
-        errno = 0;
-        if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0,
-                      (struct sockaddr *) new_client->addr, &sockaddr_in_size)) ==
-            -1) /* Get client sockaddr_in here. */
+        if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0, /* Get client sockaddr_in here. */
+                      (struct sockaddr *) new_client->addr, &sockaddr_in_size)) == -1)
         {
             switch (errno)
             {
@@ -268,16 +265,14 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
            inet_ntoa(new_client->addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
     create_pack(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
-    send_resp(set, send_packet);
+    send_resp(set, NULL, send_packet);
 }
 
-void do_messaging(struct server_settings *set,
-                  struct packet *send_packet,
-                  struct packet *recv_packet)
+void do_messaging(struct server_settings *set, struct conn_client *client,
+                  struct packet *send_packet, struct packet *recv_packet)
 {
     uint8_t   buffer[BUF_LEN];
     socklen_t sockaddr_in_size;
-    ssize_t   bytes_recv;
     uint8_t   timeout_count;
     
     timeout_count    = 0;
@@ -288,7 +283,7 @@ void do_messaging(struct server_settings *set,
         
         set->timeout->tv_sec = modify_timeout(timeout_count);
         errno = 0;
-        if (setsockopt(set->server_fd, SOL_SOCKET, SO_RCVTIMEO,
+        if (setsockopt(client->c_fd, SOL_SOCKET, SO_RCVTIMEO,
                        (const char *) set->timeout, sizeof(struct timeval)) == -1)
         {
             fatal_errno(__FILE__, __func__, __LINE__, errno);
@@ -298,9 +293,9 @@ void do_messaging(struct server_settings *set,
         
         memset(recv_packet, 0, sizeof(struct packet));
         memset(buffer, 0, BUF_LEN);
-        errno = 0;
-        if ((bytes_recv = recvfrom(set->server_fd, buffer, BUF_LEN, 0,
-                                   (struct sockaddr *) set->client_addr, &sockaddr_in_size)) == -1)
+        
+        if (recvfrom(client->c_fd, buffer, BUF_LEN, 0,
+                     (struct sockaddr *) client->addr, &sockaddr_in_size) == -1)
         {
             switch (errno)
             {
@@ -326,10 +321,10 @@ void do_messaging(struct server_settings *set,
         {
             timeout_count = 0;
             decode_message(set, recv_packet, buffer);
-            if (!errno) process_message(set, send_packet, recv_packet);
+            if (!errno) process_message(set, client, send_packet, recv_packet);
         }
-    } while (timeout_count < MAX_TIMEOUTS_SERVER &&
-             *buffer != (FLAG_FIN | FLAG_ACK)); // TODO(maxwell): make the loop not go forever
+    } while (timeout_count < MAX_TIMEOUTS_SERVER && *buffer != (FLAG_FIN | FLAG_ACK));
+    // TODO(maxwell): make the loop not go forever
 }
 
 void decode_message(struct server_settings *set, struct packet *recv_packet, const uint8_t *data_buffer)
@@ -346,7 +341,8 @@ void decode_message(struct server_settings *set, struct packet *recv_packet, con
            check_flags(recv_packet->flags), recv_packet->seq_num);
 }
 
-void process_message(struct server_settings *set, struct packet *send_packet, struct packet *recv_packet)
+void process_message(struct server_settings *set, struct conn_client *client,
+                     struct packet *send_packet, struct packet *recv_packet)
 {
     if (recv_packet->flags == FLAG_ACK && !set->connected)
     {
@@ -362,7 +358,7 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
     if ((recv_packet->flags == FLAG_PSH) &&
         (recv_packet->seq_num == (uint8_t) (send_packet->seq_num + 1))) // Why I have to cast this, C??
     {
-        process_payload(set, recv_packet);
+        process_payload(set, NULL, recv_packet);
         create_pack(send_packet, FLAG_ACK, recv_packet->seq_num, 0, NULL);
     }
     if (recv_packet->flags == FLAG_FIN)
@@ -370,13 +366,13 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
         create_pack(send_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
     }
     
-    send_resp(set, send_packet);
+    send_resp(set, client, send_packet);
 }
 
-void process_payload(struct server_settings *set, struct packet *recv_packet)
+void process_payload(struct server_settings *set, struct conn_client *client, struct packet *recv_packet)
 {
     printf("\n");
-    if (write(set->output_fd, recv_packet->payload, recv_packet->length) == -1)
+    if (write(client->c_fd, recv_packet->payload, recv_packet->length) == -1)
     {
         printf("Could not write payload to output.\n");
     }
@@ -385,8 +381,7 @@ void process_payload(struct server_settings *set, struct packet *recv_packet)
     recv_packet->payload = NULL;
 }
 
-void send_resp(struct server_settings *set,
-               struct packet *send_packet)
+void send_resp(struct server_settings *set, struct conn_client *client, struct packet *send_packet)
 {
     uint8_t   *data_buffer = NULL;
     socklen_t sockaddr_in_size;
@@ -406,7 +401,7 @@ void send_resp(struct server_settings *set,
            check_flags(send_packet->flags), send_packet->seq_num);
     
     sockaddr_in_size = sizeof(struct sockaddr_in);
-    if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) set->client_addr, sockaddr_in_size) ==
+    if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, sockaddr_in_size) ==
         -1)
     {
         perror("Message transmission to client failed: ");
@@ -414,7 +409,7 @@ void send_resp(struct server_settings *set,
     }
     
     printf("Sending to: %s\n\n",
-           inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
+           inet_ntoa(client->addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
     set->mm->mm_free(set->mm, data_buffer);
     
