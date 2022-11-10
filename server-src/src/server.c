@@ -245,10 +245,7 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     socklen_t sockaddr_in_size;
     uint8_t   buffer[BUF_LEN];
     
-    struct conn_client *new_client = alloc_conn_client(NULL, 0);
-    
-    if (set->first_conn_client == NULL)
-    
+    struct conn_client *new_client = alloc_conn_client(set); /* Allocate memory to store information about the new client. */
     
     send_packet->seq_num = MAX_SEQ;
     sockaddr_in_size = sizeof(struct sockaddr_in);
@@ -256,7 +253,7 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     {
         errno = 0;
         if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0,
-                      (struct sockaddr *) new_client->addr, &sockaddr_in_size)) == -1)
+                      (struct sockaddr *) new_client->addr, &sockaddr_in_size)) == -1) /* Get client sockaddr_in here. */
         {
             switch (errno)
             {
@@ -280,7 +277,7 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     } while (*buffer != FLAG_SYN);
     
     printf("Client connected from: %s\n\n",
-           inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
+           inet_ntoa(new_client->addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
     create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
     send_resp(set, send_packet);
@@ -289,7 +286,7 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
 struct conn_client *alloc_conn_client(struct server_settings *set)
 {
     struct conn_client *new_client;
-    if ((new_client  = s_calloc(1, sizeof(struct conn_client), __FILE__, __func__, __LINE__)) == NULL)
+    if ((new_client = s_calloc(1, sizeof(struct conn_client), __FILE__, __func__, __LINE__)) == NULL)
     {
         running = 0;
         return NULL;

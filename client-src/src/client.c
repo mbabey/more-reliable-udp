@@ -118,12 +118,11 @@ char *read_msg(struct client_settings *set, char *msg);
  * conditions are true, set running to 0 and return.
  * </p>
  * @param set - the client settings
- * @param serialized_packet - the serialized send packet
- * @param packet_size - the size of the packet
+ * @param s_packet - the packet to send
  * @param num_timeouts - the number of timeouts that have occurred
  */
 void
-handle_recv_timeout(struct client_settings *set, uint8_t *serialized_packet, size_t packet_size, int num_timeouts);
+handle_recv_timeout(struct client_settings *set, struct packet *s_packet, int num_timeouts);
 
 /**
  * process_response
@@ -134,8 +133,6 @@ handle_recv_timeout(struct client_settings *set, uint8_t *serialized_packet, siz
  * </p>
  * @param set - the settings for the client
  * @param recv_buffer - the received packet
- * @param send_buffer - the last sent packet
- * @param packet_size - the size of the send packet
  * @return false if bad sequence number or FIN/ACK, true otherwise
  */
 void process_response(struct client_settings *set, const uint8_t *recv_buffer);
@@ -146,10 +143,9 @@ void process_response(struct client_settings *set, const uint8_t *recv_buffer);
  * Resend a packet and print a relevant message.
  * </p>
  * @param set - the client settings
- * @param serialized_packet - the packet to send
- * @param packet_size - the size of the packet to send
+ * @param s_packet - the packet to send
  */
-void retransmit_packet(struct client_settings *set, const uint8_t *serialized_packet, size_t packet_size);
+void retransmit_packet(struct client_settings *set, struct packet *s_packet);
 
 /**
  * set_signal_handling
@@ -212,7 +208,7 @@ void open_client(struct client_settings *set)
     {
         return;
     }
-    
+
 //    if (bind(set->server_fd, (struct sockaddr *) set->client_addr, sizeof(struct sockaddr_in)) == -1)
 //    {
 //        return;
@@ -357,24 +353,11 @@ void send_msg(struct client_settings *set, struct packet *s_packet)
 void await_response(struct client_settings *set, struct packet *s_packet, uint8_t recv_flags)
 {
     socklen_t sockaddr_in_size;
-    uint8_t   *serialized_packet;
     uint8_t   recv_buffer[BUF_LEN];
-    size_t    packet_size;
     bool      correct_packet;
     int       num_timeouts;
     
-    serialized_packet = serialize_packet(s_packet);
-    if (errno == ENOTRECOVERABLE)
-    {
-        running = 0;
-        return;
-    }
-    set->mem_manager->mm_add(set->mem_manager, serialized_packet);
-    
     set->timeout->tv_sec = BASE_TIMEOUT;
-    
-    packet_size = sizeof(s_packet->flags) + sizeof(s_packet->seq_num)
-                  + sizeof(s_packet->length) + s_packet->length;
     
     sockaddr_in_size = sizeof(struct sockaddr_in);
     correct_packet   = false; /* We will assume we have the incorrect packet until we don't */
@@ -406,7 +389,7 @@ void await_response(struct client_settings *set, struct packet *s_packet, uint8_
                 case EWOULDBLOCK: /* If the socket times out */
                 {
                     ++num_timeouts;
-                    handle_recv_timeout(set, serialized_packet, packet_size, num_timeouts);
+                    handle_recv_timeout(set, s_packet, num_timeouts);
                     if (num_timeouts >= MAX_TIMEOUT)
                     {
                         return;
@@ -425,29 +408,25 @@ void await_response(struct client_settings *set, struct packet *s_packet, uint8_
             num_timeouts = 0; /* Reset num_timeouts: a packet was received. */
             
             /* Check the seq num and flags in the recv_buffer. If either is invalid, we have the wrong packet. */
-            correct_packet = *(recv_buffer + 1) == *(serialized_packet + 1) && *recv_buffer == recv_flags;
-    
+            correct_packet = *(recv_buffer + 1) == s_packet->flags && *recv_buffer == recv_flags;
+            
             if (!correct_packet)
             {
-                retransmit_packet(set, serialized_packet, packet_size); /* Can error, but it's okay. */
+                retransmit_packet(set, s_packet); /* Can error, but it's okay. */
             }
         }
     } while (!correct_packet); /* While the packet we received is not correct */
     
     process_response(set, recv_buffer); /* Once we have the correct packet, we will process it */
     
-    set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
 
-void handle_recv_timeout(struct client_settings *set,
-                         uint8_t *serialized_packet,
-                         size_t packet_size,
-                         int num_timeouts) // TODO(maxwell): implement changing timeout
+void handle_recv_timeout(struct client_settings *set, struct packet *s_packet, int num_timeouts) // TODO(maxwell): implement changing timeout
 {
     printf("Timeout occurred, timeouts remaining: %d\n\n", (MAX_TIMEOUT - num_timeouts));
     
     // Connection to server failure.
-    if (num_timeouts >= MAX_TIMEOUT && *serialized_packet == FLAG_SYN)
+    if (num_timeouts >= MAX_TIMEOUT && s_packet->flags == FLAG_SYN)
     {
         printf("Too many unsuccessful attempts to connect to server, terminating\n");
         running = 0;
@@ -455,23 +434,35 @@ void handle_recv_timeout(struct client_settings *set,
     }
     
     // Waiting to see if final FIN/ACK sent successfully.
-    if (num_timeouts >= MAX_TIMEOUT && *serialized_packet == (FLAG_FIN | FLAG_ACK))
+    if (num_timeouts >= MAX_TIMEOUT && s_packet->flags == (FLAG_FIN | FLAG_ACK))
     {
         printf("Assuming server terminated, disconnecting.\n\n");
         running = 0;
         return;
     }
     
-    retransmit_packet(set, serialized_packet, packet_size);
+    retransmit_packet(set, s_packet);
 }
 
-void retransmit_packet(struct client_settings *set, const uint8_t *serialized_packet, size_t packet_size)
+void retransmit_packet(struct client_settings *set, struct packet *s_packet)
 {
-    socklen_t sockaddr_in_size;
-    
     printf("Retransmitting packet\n\n");
     
+    socklen_t sockaddr_in_size;
+    uint8_t   *serialized_packet;
+    size_t    packet_size;
+    
+    serialized_packet = serialize_packet(s_packet);
+    if (errno == ENOMEM)
+    {
+        running = 0;
+        return;
+    }
+    set->mem_manager->mm_add(set->mem_manager, serialized_packet);
+    
     sockaddr_in_size = sizeof(struct sockaddr_in);
+    packet_size      = sizeof(s_packet->flags) + sizeof(s_packet->seq_num)
+                       + sizeof(s_packet->length) + s_packet->length;
     
     if (sendto(set->server_fd, serialized_packet, packet_size, 0, (struct sockaddr *) set->server_addr,
                sockaddr_in_size) == -1)
@@ -482,9 +473,12 @@ void retransmit_packet(struct client_settings *set, const uint8_t *serialized_pa
     }
     
     printf("Sent packet:\n\tFlags: %s\n\tLength: %zu\n\n", check_flags(*serialized_packet), packet_size);
+    
+    set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
 
-void process_response(struct client_settings *set, const uint8_t *recv_buffer) // TODO(maxwell): Will eventually set errno
+void
+process_response(struct client_settings *set, const uint8_t *recv_buffer) // TODO(maxwell): Will eventually set errno
 {
     printf("Received response:\n\tFlags: %s\n", check_flags(*recv_buffer));
     
