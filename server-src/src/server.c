@@ -54,10 +54,10 @@ void connect_to(struct server_settings *set);
  * Await a SYN message from a connecting client. Respond with a SYN/ACK.
  * </p>
  * @param set - the server settings
- * @param send_packet - the packet struct to send
+ * @param s_packet - the packet struct to send
  * @param recv_packet - the packet struct to receive
  */
-void do_accept(struct server_settings *set, struct packet *send_packet);
+void do_accept(struct server_settings *set, struct packet *s_packet);
 
 /**
  * do_messaging.
@@ -66,10 +66,10 @@ void do_accept(struct server_settings *set, struct packet *send_packet);
  * resend the last-sent packet. If a timeout occurs too many times, drop the connection.
  * </p>
  * @param set - the server settings
- * @param send_packet - the packet struct to send
+ * @param s_packet - the packet struct to send
  * @param recv_packet - the packet struct to receive
  */
-void do_messaging(struct server_settings *set, struct conn_client *client, struct packet *send_packet,
+void do_messaging(struct server_settings *set, struct conn_client *client, struct packet *s_packet,
                   struct packet *recv_packet);
 
 /**
@@ -78,10 +78,10 @@ void do_messaging(struct server_settings *set, struct conn_client *client, struc
  * Check the flags in the packet struct. Depending on the flags, respond accordingly.
  * </p>
  * @param set - the server settings
- * @param send_packet - the packet struct to send
+ * @param s_packet - the packet struct to send
  * @param recv_packet - the packet struct to receive
  */
-void process_message(struct server_settings *set, struct conn_client *client, struct packet *send_packet,
+void process_message(struct server_settings *set, struct conn_client *client, struct packet *s_packet,
                      struct packet *recv_packet);
 
 /**
@@ -100,9 +100,9 @@ void process_payload(struct server_settings *set, struct conn_client *client, st
  * Send the send packet to the client as a response.
  * </p>
  * @param set - the server settings
- * @param send_packet - the packet struct to send
+ * @param s_packet - the packet struct to send
  */
-void send_resp(struct server_settings *set, struct conn_client *client, struct packet *send_packet);
+void send_resp(struct server_settings *set, struct conn_client *client, struct packet *s_packet);
 
 int setup_socket(char *ip, in_port_t port);
 
@@ -170,7 +170,7 @@ void await_connect(struct server_settings *set)
 void connect_to(struct server_settings *set)
 {
     struct conn_client *curr_cli;
-    struct packet      send_packet;
+    struct packet      s_packet;
     struct packet      recv_packet;
     
     FD_ZERO(&set->readfds);
@@ -207,7 +207,7 @@ void connect_to(struct server_settings *set)
     
     if (FD_ISSET(set->server_fd, &set->readfds))
     {
-        if (!errno) do_accept(set, &send_packet);
+        if (!errno) do_accept(set, &s_packet);
     } else
     {
         curr_cli = set->first_conn_client;
@@ -215,7 +215,7 @@ void connect_to(struct server_settings *set)
         {
             if (FD_ISSET(curr_cli->c_fd, &set->readfds))
             {
-                if (!errno) do_messaging(set, NULL, &send_packet, &recv_packet);
+                if (!errno) do_messaging(set, NULL, &s_packet, &recv_packet);
             }
             curr_cli = curr_cli->next; /* Go to next client in list. */
         }
@@ -223,17 +223,17 @@ void connect_to(struct server_settings *set)
     
 }
 
-void do_accept(struct server_settings *set, struct packet *send_packet)
+void do_accept(struct server_settings *set, struct packet *s_packet)
 {
     printf("Awaiting connections.\n\n");
     
     socklen_t sockaddr_in_size;
     uint8_t   buffer[BUF_LEN];
     
-    struct conn_client *new_client = alloc_conn_client(
-            set); /* Allocate memory to store information about the new client. */
+    /* Initialize storage for information about the new client. */
+    struct conn_client *new_client = create_conn_client(set);
     
-    send_packet->seq_num = MAX_SEQ;
+    s_packet->seq_num = MAX_SEQ;
     sockaddr_in_size = sizeof(struct sockaddr_in);
     do /* This loop will hang until a SYN packet is received. It is essentially accept. */
     {
@@ -246,10 +246,6 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
                 {
                     // running set to 0 with signal handler.
                     return;
-                }
-                case EWOULDBLOCK: // TODO: unset the timeout when a client disconnects.
-                {
-                    break;
                 }
                 default:
                 {
@@ -264,12 +260,14 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     printf("Client connected from: %s\n\n",
            inet_ntoa(new_client->addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
-    create_pack(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
-    send_resp(set, NULL, send_packet);
+    new_client->c_fd = setup_socket(set->server_ip, 0); /* Create a new socket with an ephemeral port. */
+    
+    create_pack(s_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
+    send_resp(set, NULL, s_packet);
 }
 
 void do_messaging(struct server_settings *set, struct conn_client *client,
-                  struct packet *send_packet, struct packet *recv_packet)
+                  struct packet *s_packet, struct packet *recv_packet)
 {
     uint8_t   buffer[BUF_LEN];
     socklen_t sockaddr_in_size;
@@ -321,7 +319,7 @@ void do_messaging(struct server_settings *set, struct conn_client *client,
         {
             timeout_count = 0;
             decode_message(set, recv_packet, buffer);
-            if (!errno) process_message(set, client, send_packet, recv_packet);
+            if (!errno) process_message(set, client, s_packet, recv_packet);
         }
     } while (timeout_count < MAX_TIMEOUTS_SERVER && *buffer != (FLAG_FIN | FLAG_ACK));
     // TODO(maxwell): make the loop not go forever
@@ -342,31 +340,31 @@ void decode_message(struct server_settings *set, struct packet *recv_packet, con
 }
 
 void process_message(struct server_settings *set, struct conn_client *client,
-                     struct packet *send_packet, struct packet *recv_packet)
+                     struct packet *s_packet, struct packet *recv_packet)
 {
     if (recv_packet->flags == FLAG_ACK && !set->connected)
     {
         set->connected = true; // TODO: this is busted for multiple clients (maybe?). Each thread will need it's own connected (maybe?)
     }
     // FIN/ACK || end of 3-way do_synchronize || additional connect attempt
-    if ((send_packet->flags == (FLAG_FIN | FLAG_ACK) ||
+    if ((s_packet->flags == (FLAG_FIN | FLAG_ACK) ||
          recv_packet->flags == FLAG_ACK ||
          recv_packet->flags == FLAG_SYN) && set->connected)
     {
         return;
     }
     if ((recv_packet->flags == FLAG_PSH) &&
-        (recv_packet->seq_num == (uint8_t) (send_packet->seq_num + 1))) // Why I have to cast this, C??
+        (recv_packet->seq_num == (uint8_t) (s_packet->seq_num + 1))) // Why I have to cast this, C??
     {
         process_payload(set, NULL, recv_packet);
-        create_pack(send_packet, FLAG_ACK, recv_packet->seq_num, 0, NULL);
+        create_pack(s_packet, FLAG_ACK, recv_packet->seq_num, 0, NULL);
     }
     if (recv_packet->flags == FLAG_FIN)
     {
-        create_pack(send_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
+        create_pack(s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
     }
     
-    send_resp(set, client, send_packet);
+    send_resp(set, client, s_packet);
 }
 
 void process_payload(struct server_settings *set, struct conn_client *client, struct packet *recv_packet)
@@ -381,31 +379,44 @@ void process_payload(struct server_settings *set, struct conn_client *client, st
     recv_packet->payload = NULL;
 }
 
-void send_resp(struct server_settings *set, struct conn_client *client, struct packet *send_packet)
+void send_resp(struct server_settings *set, struct conn_client *client, struct packet *s_packet)
 {
     uint8_t   *data_buffer = NULL;
     socklen_t sockaddr_in_size;
     size_t    packet_size;
     
-    if ((data_buffer = serialize_packet(send_packet)) == NULL)
+    if ((data_buffer = serialize_packet(s_packet)) == NULL)
     {
         running = 0;
         return;
     }
     set->mm->mm_add(set->mm, data_buffer);
     
-    packet_size = sizeof(send_packet->flags) + sizeof(send_packet->seq_num)
-                  + sizeof(send_packet->length) + send_packet->length;
+    packet_size = sizeof(s_packet->flags) + sizeof(s_packet->seq_num)
+                  + sizeof(s_packet->length) + s_packet->length;
+    
     
     printf("Sending packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
-           check_flags(send_packet->flags), send_packet->seq_num);
-    
+           check_flags(s_packet->flags), s_packet->seq_num);
     sockaddr_in_size = sizeof(struct sockaddr_in);
     if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, sockaddr_in_size) ==
         -1)
     {
         perror("Message transmission to client failed: ");
         return;
+    }
+    
+    if (s_packet->flags == (FLAG_FIN | FLAG_ACK))
+    {
+        *data_buffer = FLAG_FIN;
+        printf("Sending packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
+               check_flags(*data_buffer), s_packet->seq_num);
+        if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, sockaddr_in_size) ==
+            -1)
+        {
+            perror("Message transmission to client failed: ");
+            return;
+        }
     }
     
     printf("Sending to: %s\n\n",

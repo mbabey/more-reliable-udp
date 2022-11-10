@@ -12,11 +12,6 @@
 #include <unistd.h>
 
 /**
- * The default output for the server.
- */
-#define DEFAULT_OUTPUT STDOUT_FILENO
-
-/**
  * The default timeout (in seconds) for the server.
  */
 #define DEFAULT_SERVER_TIMEOUT SERVER_TIMEOUT_SHORT
@@ -56,7 +51,6 @@ void set_defaults(struct server_settings *set)
 {
     memset(set, 0, sizeof(struct server_settings));
     set->server_port = DEFAULT_PORT;
-    set->output_fd   = DEFAULT_OUTPUT;
     
     if ((set->mm = init_mem_manager()) == NULL)
     {

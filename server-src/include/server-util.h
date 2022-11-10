@@ -57,14 +57,14 @@ struct conn_client
 };
 
 /**
- * alloc_conn_client
+ * create_conn_client
  * <p>
  * Allocate memory for and return a pointer to a new connected client node. Add the new client to the
  * server settings linked list of connected clients and add the memory to the memory manager.
  * </p>
  * @return a pointer to the newly allocated connected client struct.
  */
-struct conn_client *alloc_conn_client(struct server_settings *set);
+struct conn_client *create_conn_client(struct server_settings *set);
 
 /**
  * modify_timeout
@@ -105,7 +105,7 @@ void create_pack(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uin
  * @author D'Arcy Smith
  * @param sa - the sigaction for setup
  */
-static void set_signal_handling(struct sigaction *sa);
+void set_signal_handling(struct sigaction *sa);
 
 /**
  * signal_handler
@@ -115,6 +115,6 @@ static void set_signal_handling(struct sigaction *sa);
  * @param sig - the signal
  * @author D'Arcy Smith
  */
-static void signal_handler(int sig);
+void signal_handler(int sig);
 
 #endif //RELIABLE_UDP_SERVER_UTIL_HPP

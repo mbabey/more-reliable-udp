@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct conn_client *alloc_conn_client(struct server_settings *set)
+struct conn_client *create_conn_client(struct server_settings *set)
 {
     struct conn_client *new_client;
     if ((new_client = s_calloc(1, sizeof(struct conn_client), __FILE__, __func__, __LINE__)) == NULL)
@@ -71,17 +71,17 @@ uint8_t modify_timeout(uint8_t timeout_count)
     }
 }
 
-void create_pack(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
+void create_pack(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
 {
-    memset(send_packet, 0, sizeof(struct packet));
+    memset(packet, 0, sizeof(struct packet));
     
-    send_packet->flags   = flags;
-    send_packet->seq_num = seq_num;
-    send_packet->length = len;
-    send_packet->payload = payload;
+    packet->flags   = flags;
+    packet->seq_num = seq_num;
+    packet->length = len;
+    packet->payload = payload;
 }
 
-static void set_signal_handling(struct sigaction *sa)
+void set_signal_handling(struct sigaction *sa)
 {
     sigemptyset(&sa->sa_mask);
     sa->sa_flags   = 0;
@@ -95,7 +95,7 @@ static void set_signal_handling(struct sigaction *sa)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-static void signal_handler(int sig)
+void signal_handler(int sig)
 {
     running = 0;
 }
