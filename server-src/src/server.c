@@ -92,7 +92,7 @@ void process_message(struct server_settings *set, struct conn_client *client, st
  * @param set - the server settings
  * @param recv_packet - the packet struct to receive
  */
-void process_payload(struct server_settings *set, struct conn_client *client, struct packet *recv_packet);
+void process_payload(struct server_settings *set, struct packet *recv_packet);
 
 /**
  * send_resp
@@ -119,7 +119,6 @@ void run(int argc, char *argv[], struct server_settings *set)
 
 void open_server(struct server_settings *set)
 {
-    errno = 0;
     if ((set->server_fd = setup_socket(set->server_ip, set->server_port)) == -1)
     {
         return;
@@ -187,12 +186,14 @@ void connect_to(struct server_settings *set)
         curr_cli = curr_cli->next; /* Go to next client in list. */
     }
     
+    int test = errno;
     if (select(set->max_fd, &set->readfds, NULL, NULL, NULL) == -1)
     {
         switch (errno)
         {
             case EINTR:
             {
+                fatal_errno(__FILE__, __func__, __LINE__, errno);
                 // running set to 0 with signal handler.
                 return;
             }
@@ -356,7 +357,7 @@ void process_message(struct server_settings *set, struct conn_client *client,
     if ((recv_packet->flags == FLAG_PSH) &&
         (recv_packet->seq_num == (uint8_t) (s_packet->seq_num + 1))) // Why I have to cast this, C??
     {
-        process_payload(set, NULL, recv_packet);
+        process_payload(set, recv_packet);
         create_pack(s_packet, FLAG_ACK, recv_packet->seq_num, 0, NULL);
     }
     if (recv_packet->flags == FLAG_FIN)
@@ -367,10 +368,10 @@ void process_message(struct server_settings *set, struct conn_client *client,
     send_resp(set, client, s_packet);
 }
 
-void process_payload(struct server_settings *set, struct conn_client *client, struct packet *recv_packet)
+void process_payload(struct server_settings *set, struct packet *recv_packet)
 {
     printf("\n");
-    if (write(client->c_fd, recv_packet->payload, recv_packet->length) == -1)
+    if (write(STDOUT_FILENO, recv_packet->payload, recv_packet->length) == -1)
     {
         printf("Could not write payload to output.\n");
     }
