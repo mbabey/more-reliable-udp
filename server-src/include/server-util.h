@@ -11,10 +11,14 @@
 #include <sys/types.h>
 
 /**
+ * The maximum number of clients that can communicate with the server at once.
+ */
+#define MAX_CLIENTS 2
+
+/**
  * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
  */
 static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
-
 
 /**
  * server_settings
@@ -34,17 +38,19 @@ struct server_settings
     char      *server_ip;
     in_port_t server_port;
     int       server_fd;
-    int       output_fd;
-    bool      connected;
+    bool connected;
+    
+    int    max_fd;
+    fd_set readfds;
     
     struct timeval        *timeout;
-    struct conn_client    *first_conn_client;
+    struct conn_client    *first_conn_client; /* Linked list holding fds, IPs, and port nums for connected clients. */
     struct memory_manager *mm;
 };
 
 struct conn_client
 {
-    int c_fd;
+    int                c_fd;
     struct sockaddr_in *addr;
     
     struct conn_client *next;

@@ -105,6 +105,8 @@ void process_payload(struct server_settings *set, struct packet *recv_packet);
 void send_resp(struct server_settings *set,
                struct packet *send_packet);
 
+int setup_socket(char *ip, in_port_t port);
+
 void run(int argc, char *argv[], struct server_settings *set)
 {
     init_def_state(argc, argv, set);
@@ -119,29 +121,38 @@ void run(int argc, char *argv[], struct server_settings *set)
 void open_server(struct server_settings *set)
 {
     errno = 0;
-    struct sockaddr_in server_addr;
-    
-    if ((set->server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
+    if ((set->server_fd = setup_socket(set->server_ip, set->server_port)) == -1)
     {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
         return;
     }
-    
-    server_addr.sin_family           = AF_INET;
-    server_addr.sin_port             = htons(set->server_port);
-    if ((server_addr.sin_addr.s_addr = inet_addr(set->server_ip)) == (in_addr_t) -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        return;
-    }
-    
-    if (bind(set->server_fd, (struct sockaddr *) &server_addr, sizeof(struct sockaddr_in)) == -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        return;
-    }
-    
     printf("\nServer running on %s:%d\n\n", set->server_ip, set->server_port);
+}
+
+int setup_socket(char *ip, in_port_t port)
+{
+    struct sockaddr_in addr;
+    int                fd;
+    
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return -1;
+    }
+    
+    addr.sin_family           = AF_INET;
+    addr.sin_port             = htons(port);
+    if ((addr.sin_addr.s_addr = inet_addr(ip)) == (in_addr_t) -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return -1;
+    }
+    
+    if (bind(fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) == -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return -1;
+    }
+    return fd;
 }
 
 void await_connect(struct server_settings *set)
@@ -159,17 +170,57 @@ void await_connect(struct server_settings *set)
 
 void connect_to(struct server_settings *set)
 {
-    set->connected = false; // TODO: instead use the ip address of the person it is coming from
+    struct conn_client *curr_cli;
+    struct packet      send_packet;
+    struct packet      recv_packet;
     
-    struct packet send_packet;
-    struct packet recv_packet;
+    FD_ZERO(&set->readfds);
+    FD_SET(set->server_fd, &set->readfds);
+    set->max_fd = set->server_fd;
     
-    /* Zero the client addr struct to clear the information of the last-connected client. */
-//    memset(set->client_addr, 0, sizeof(struct sockaddr_in)); // TODO: this can be local to the recv-reply
+    /* Select the first MAX_CLIENTS connected clients. */
+    curr_cli = set->first_conn_client;
+    for (int num_selected_cli = 0; curr_cli != NULL && num_selected_cli < MAX_CLIENTS; ++num_selected_cli)
+    {
+        FD_SET(curr_cli->c_fd, &set->readfds); /* Add that client's fd to the set. */
+        set->max_fd = (curr_cli->c_fd > set->max_fd) ? curr_cli->c_fd : set->max_fd; /* Set new max_fd if necessary. */
+        
+        curr_cli = curr_cli->next; /* Go to next client in list. */
+    }
     
-    do_accept(set, &send_packet);
+    if (select(set->max_fd, &set->readfds, NULL, NULL, NULL) == -1)
+    {
+        switch (errno)
+        {
+            case EINTR:
+            {
+                // running set to 0 with signal handler.
+                return;
+            }
+            default:
+            {
+                fatal_errno(__FILE__, __func__, __LINE__, errno);
+                running = 0;
+                return;
+            }
+        }
+    }
     
-    if (!errno) do_messaging(set, &send_packet, &recv_packet);
+    if (FD_ISSET(set->server_fd, &set->readfds))
+    {
+        if (!errno) do_accept(set, &send_packet);
+    } else
+    {
+        curr_cli = set->first_conn_client;
+        for (int num_selected_cli = 0; curr_cli != NULL && num_selected_cli < MAX_CLIENTS; ++num_selected_cli)
+        {
+            if (FD_ISSET(curr_cli->c_fd, &set->readfds))
+            {
+                if (!errno) do_messaging(set, &send_packet, &recv_packet);
+            }
+            curr_cli = curr_cli->next; /* Go to next client in list. */
+        }
+    }
     
 }
 
@@ -180,7 +231,8 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     socklen_t sockaddr_in_size;
     uint8_t   buffer[BUF_LEN];
     
-    struct conn_client *new_client = alloc_conn_client(set); /* Allocate memory to store information about the new client. */
+    struct conn_client *new_client = alloc_conn_client(
+            set); /* Allocate memory to store information about the new client. */
     
     send_packet->seq_num = MAX_SEQ;
     sockaddr_in_size = sizeof(struct sockaddr_in);
@@ -188,7 +240,8 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     {
         errno = 0;
         if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0,
-                      (struct sockaddr *) new_client->addr, &sockaddr_in_size)) == -1) /* Get client sockaddr_in here. */
+                      (struct sockaddr *) new_client->addr, &sockaddr_in_size)) ==
+            -1) /* Get client sockaddr_in here. */
         {
             switch (errno)
             {
@@ -275,7 +328,8 @@ void do_messaging(struct server_settings *set,
             decode_message(set, recv_packet, buffer);
             if (!errno) process_message(set, send_packet, recv_packet);
         }
-    } while (timeout_count < MAX_TIMEOUTS_SERVER && *buffer != (FLAG_FIN | FLAG_ACK));
+    } while (timeout_count < MAX_TIMEOUTS_SERVER &&
+             *buffer != (FLAG_FIN | FLAG_ACK)); // TODO(maxwell): make the loop not go forever
 }
 
 void decode_message(struct server_settings *set, struct packet *recv_packet, const uint8_t *data_buffer)
