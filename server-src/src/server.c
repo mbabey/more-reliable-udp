@@ -6,6 +6,7 @@
 #include "../../libs/include/manager.h"
 #include "../../libs/include/util.h"
 #include "../include/server.h"
+#include "../include/server-util.h"
 #include "../include/setup.h"
 #include <arpa/inet.h>
 #include <signal.h>
@@ -19,11 +20,6 @@
  * The number of connections which may be queued at once.
  */
 #define MAX_TIMEOUTS_SERVER 3
-
-/**
- * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
- */
-static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
 
 /**
  * open_server
@@ -64,16 +60,6 @@ void connect_to(struct server_settings *set);
 void do_accept(struct server_settings *set, struct packet *send_packet);
 
 /**
- * alloc_conn_client
- * <p>
- * Allocate memory for and return a pointer to a new connected client node. Add the new client to the
- * server settings linked list of connected clients and add the memory to the memory manager.
- * </p>
- * @return a pointer to the newly allocated connected client struct.
- */
-struct conn_client *alloc_conn_client(struct server_settings *set);
-
-/**
  * do_messaging.
  * <p>
  * Await a message from the connected client. If no message is received and a timeout occurs,
@@ -86,26 +72,6 @@ struct conn_client *alloc_conn_client(struct server_settings *set);
 void do_messaging(struct server_settings *set,
                   struct packet *send_packet,
                   struct packet *recv_packet);
-
-/**
- * modify_timeout
- * <p>
- * Change the timeout duration based on the number of timeouts that have occured.
- * </p>
- * @return
- */
-uint8_t modify_timeout(uint8_t timeout_count);
-
-/**
- * decode_message.
- * <p>
- * Load the bytes of the data buffer into the receive packet struct fields.
- * </p>
- * @param set - the server settings
- * @param send_packet - the packet struct to send
- * @param recv_packet - the packet struct to receive
- */
-void decode_message(struct server_settings *set, struct packet *recv_packet, const uint8_t *data_buffer);
 
 /**
  * process_message
@@ -129,17 +95,6 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
 void process_payload(struct server_settings *set, struct packet *recv_packet);
 
 /**
- * create_resp
- * <p>
- * Zero the send packet. Set the flags and the sequence number.
- * </p>
- * @param flags - the flags to set in the send packet
- * @param seq_num - the sequence number to set in the send packet
- * @param send_packet - the packet struct to send
- */
-void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
-
-/**
  * send_resp
  * <p>
  * Send the send packet to the client as a response.
@@ -149,26 +104,6 @@ void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uin
  */
 void send_resp(struct server_settings *set,
                struct packet *send_packet);
-
-/**
- * set_signal_handling
- * <p>
- * Setup a handler for the SIGINT signal.
- * </p>
- * @author D'Arcy Smith
- * @param sa - the sigaction for setup
- */
-static void set_signal_handling(struct sigaction *sa);
-
-/**
- * signal_handler
- * <p>
- * Callback function for the signal handler. Will set running to 0 upon signal.
- * </p>
- * @param sig - the signal
- * @author D'Arcy Smith
- */
-static void signal_handler(int sig);
 
 void run(int argc, char *argv[], struct server_settings *set)
 {
@@ -279,45 +214,8 @@ void do_accept(struct server_settings *set, struct packet *send_packet)
     printf("Client connected from: %s\n\n",
            inet_ntoa(new_client->addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
-    create_resp(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
+    create_pack(send_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
     send_resp(set, send_packet);
-}
-
-struct conn_client *alloc_conn_client(struct server_settings *set)
-{
-    struct conn_client *new_client;
-    if ((new_client = s_calloc(1, sizeof(struct conn_client), __FILE__, __func__, __LINE__)) == NULL)
-    {
-        running = 0;
-        return NULL;
-    }
-    
-    if ((new_client->addr = s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__)) == NULL)
-    {
-        free(new_client);
-        running = 0;
-        return NULL;
-    }
-    
-    set->mm->mm_add(set->mm, new_client->addr); /* Add the new client to the memory manager. */
-    set->mm->mm_add(set->mm, new_client);
-    
-    if (set->first_conn_client == NULL) /* Add the new client to the back of the connected client list. */
-    {
-        set->first_conn_client = new_client;
-    } else
-    {
-        struct conn_client *curr_node;
-        
-        curr_node = set->first_conn_client;
-        while (curr_node->next != NULL)
-        {
-            curr_node = curr_node->next;
-        }
-        curr_node->next = new_client;
-    }
-    
-    return new_client;
 }
 
 void do_messaging(struct server_settings *set,
@@ -371,39 +269,13 @@ void do_messaging(struct server_settings *set,
                     return;
                 }
             }
-        }
-        
-        if (bytes_recv > 0)
+        } else
         {
             timeout_count = 0;
             decode_message(set, recv_packet, buffer);
             if (!errno) process_message(set, send_packet, recv_packet);
         }
-        
     } while (timeout_count < MAX_TIMEOUTS_SERVER && *buffer != (FLAG_FIN | FLAG_ACK));
-}
-
-uint8_t modify_timeout(uint8_t timeout_count)
-{
-    switch (timeout_count)
-    {
-        case 0:
-        {
-            return SERVER_TIMEOUT_SHORT;
-        }
-        case 1:
-        {
-            return SERVER_TIMEOUT_MED;
-        }
-        case 2:
-        {
-            return SERVER_TIMEOUT_LONG;
-        }
-        default:
-        {
-            return SERVER_TIMEOUT_SHORT;
-        }
-    }
 }
 
 void decode_message(struct server_settings *set, struct packet *recv_packet, const uint8_t *data_buffer)
@@ -437,11 +309,11 @@ void process_message(struct server_settings *set, struct packet *send_packet, st
         (recv_packet->seq_num == (uint8_t) (send_packet->seq_num + 1))) // Why I have to cast this, C??
     {
         process_payload(set, recv_packet);
-        create_resp(send_packet, FLAG_ACK, recv_packet->seq_num, 0, NULL);
+        create_pack(send_packet, FLAG_ACK, recv_packet->seq_num, 0, NULL);
     }
     if (recv_packet->flags == FLAG_FIN)
     {
-        create_resp(send_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
+        create_pack(send_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
     }
     
     send_resp(set, send_packet);
@@ -457,14 +329,6 @@ void process_payload(struct server_settings *set, struct packet *recv_packet)
     printf("\n");
     set->mm->mm_free(set->mm, recv_packet->payload);
     recv_packet->payload = NULL;
-}
-
-void create_resp(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
-{
-    memset(send_packet, 0, sizeof(struct packet));
-    
-    send_packet->flags   = flags;
-    send_packet->seq_num = seq_num;
 }
 
 void send_resp(struct server_settings *set,
@@ -495,20 +359,6 @@ void send_resp(struct server_settings *set,
         return;
     }
     
-    if (send_packet->flags == (FLAG_FIN | FLAG_ACK))
-    {
-        *data_buffer = FLAG_FIN;
-        if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) set->client_addr,
-                   sockaddr_in_size) == -1)
-        {
-            perror("Message transmission to client failed: ");
-            return;
-        }
-        
-        printf("Sending packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
-               check_flags(*data_buffer), send_packet->seq_num);
-    }
-    
     printf("Sending to: %s\n\n",
            inet_ntoa(set->client_addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
@@ -527,24 +377,3 @@ void close_server(struct server_settings *set)
     }
     free_mem_manager(set->mm);
 }
-
-static void set_signal_handling(struct sigaction *sa)
-{
-    sigemptyset(&sa->sa_mask);
-    sa->sa_flags   = 0;
-    sa->sa_handler = signal_handler;
-    if (sigaction(SIGINT, sa, 0) == -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-    }
-}
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static void signal_handler(int sig)
-{
-    running = 0;
-}
-
-#pragma GCC diagnostic pop

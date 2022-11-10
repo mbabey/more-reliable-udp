@@ -5,42 +5,9 @@
 #ifndef RELIABLE_UDP_SERVER_H
 #define RELIABLE_UDP_SERVER_H
 
+#include "../include/server-util.h"
 #include <stdbool.h>
 #include <sys/types.h>
-
-/**
- * server_settings
- * <p>
- * Stores global settings for the server.
- * <ul>
- * <li>server_ip: the server's ip address</li>
- * <li>server_port: the server's port number</li>
- * <li>server_fd: file descriptor of the socket listening for connections</li>
- * <li>accept_fd: file descriptor of the socket created when a connection is made</li>
- * <li>output_fd: file descriptor for the output</li>
- * </ul>
- * </p>
- */
-struct server_settings
-{
-    char      *server_ip;
-    in_port_t server_port;
-    int       server_fd;
-    int       output_fd;
-    bool      connected;
-    
-    struct timeval        *timeout;
-    struct conn_client    *first_conn_client;
-    struct memory_manager *mm;
-};
-
-struct conn_client
-{
-    int c_fd;
-    struct sockaddr_in *addr;
-    
-    struct conn_client *next;
-};
 
 /**
  * run.

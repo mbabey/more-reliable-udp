@@ -35,10 +35,12 @@ set(SERVER_INC_DIR ${SERVER_DIR}/include)
 set(SERVER_SRC_LIST
         ${SERVER_SRC_DIR}/main.c
         ${SERVER_SRC_DIR}/server.c
+        ${SERVER_SRC_DIR}/server-util.c
         ${SERVER_SRC_DIR}/setup.c
         )
 set(SERVER_HDR_LIST
         ${SERVER_INC_DIR}/server.h
+        ${SERVER_INC_DIR}/server-util.h
         ${SERVER_INC_DIR}/setup.h
         )
 # End Server.

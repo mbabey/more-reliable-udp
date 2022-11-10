@@ -89,7 +89,7 @@ void create_packet(struct packet *send_packet, uint8_t flags, uint8_t seq_num, u
 void send_msg(struct client_settings *set, struct packet *s_packet);
 
 /**
- * await_response
+ * await_msg
  * <p>
  * Await a response from the server. If a response is not received within the timeout, retransmit the packet,
  * then wait again. If MAX_TIMEOUT timeouts occur, set running to 0 and return.
@@ -98,7 +98,7 @@ void send_msg(struct client_settings *set, struct packet *s_packet);
  * @param serialized_packet - the serialized send packet
  * @param packet_size - the size of the packet
  */
-void await_response(struct client_settings *set, struct packet *s_packet, uint8_t recv_flags);
+void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t recv_flags);
 
 /**
  * read_msg
@@ -227,7 +227,7 @@ void do_synchronize(struct client_settings *set)
     
     create_packet(&s_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     send_msg(set, &s_packet);
-    if (!errno) await_response(set, &s_packet, FLAG_SYN | FLAG_ACK);
+    if (!errno) await_msg(set, &s_packet, FLAG_SYN | FLAG_ACK);
     
     create_packet(&s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
     if (!errno) send_msg(set, &s_packet);
@@ -259,7 +259,7 @@ void do_messaging(struct client_settings *set)
             
             printf("Sending message: %s\n\n", msg);
             send_msg(set, &s_packet);
-            if (!errno) await_response(set, &s_packet, FLAG_ACK);
+            if (!errno) await_msg(set, &s_packet, FLAG_ACK);
             
             set->mem_manager->mm_free(set->mem_manager, msg);
         }
@@ -276,12 +276,12 @@ void do_fin_seq(struct client_settings *set)
     
     create_packet(&s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
     send_msg(set, &s_packet);
-    if (!errno) await_response(set, &s_packet, FLAG_FIN | FLAG_ACK);
-    if (!errno) await_response(set, &s_packet, FLAG_FIN);
+    if (!errno) await_msg(set, &s_packet, FLAG_FIN | FLAG_ACK);
+    if (!errno) await_msg(set, &s_packet, FLAG_FIN);
     
     create_packet(&s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
     if (!errno) send_msg(set, &s_packet);
-    if (!errno) await_response(set, &s_packet, FLAG_FIN);
+    if (!errno) await_msg(set, &s_packet, FLAG_FIN);
 }
 
 char *read_msg(struct client_settings *set, char *msg) // TODO(maxwell): deprecated, here for testing purposes
@@ -350,7 +350,7 @@ void send_msg(struct client_settings *set, struct packet *s_packet)
     set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
 
-void await_response(struct client_settings *set, struct packet *s_packet, uint8_t recv_flags)
+void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t recv_flags)
 {
     socklen_t sockaddr_in_size;
     uint8_t   recv_buffer[BUF_LEN];
