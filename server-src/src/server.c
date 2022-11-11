@@ -8,7 +8,6 @@
 #include "../include/server.h"
 #include "../include/setup.h"
 #include <arpa/inet.h>
-#include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
