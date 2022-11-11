@@ -168,6 +168,7 @@ void connect_to(struct server_settings *set)
     struct conn_client *curr_cli;
     fd_set             readfds;
     int                max_fd;
+    // pthread_t cli_threads[MAX_CLIENTS]
     
     max_fd = set_readfds(set, &readfds);
     
@@ -198,16 +199,19 @@ void connect_to(struct server_settings *set)
     } else
     {
         curr_cli = set->first_conn_client;
-        for (int num_selected_cli = 0; curr_cli != NULL && num_selected_cli < MAX_CLIENTS; ++num_selected_cli)
+        for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
         {
             if (FD_ISSET(curr_cli->c_fd, &readfds))
             {
+                // cli_threads[cli_num] = new pthread
+                // create_pthread(cli_threads[cli_num], do_message, cli)
                 if (!errno)
                 { do_message(set, curr_cli); }
             }
             curr_cli = curr_cli->next; /* Go to next client in list. */
         }
     }
+    /* for i < MAX_CLIENTS, pthread_join(cli_threads[i], NULL) */
 }
 
 void do_accept(struct server_settings *set)
