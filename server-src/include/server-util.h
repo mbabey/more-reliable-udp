@@ -28,7 +28,7 @@ static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-cons
  * <li>server_ip: the server's ip address</li>
  * <li>server_port: the server's port number</li>
  * <li>server_fd: file descriptor of the socket listening for connections</li>
- * <li>accept_fd: file descriptor of the socket created when a connection is made</li>
+ * <li>max_fd: the maximum value of the file descriptor</li>
  * <li>output_fd: file descriptor for the output</li>
  * </ul>
  * </p>
@@ -38,10 +38,6 @@ struct server_settings
     char      *server_ip;
     in_port_t server_port;
     int       server_fd;
-    bool connected;
-    
-    int    max_fd;
-    fd_set readfds;
     
     struct timeval        *timeout;
     struct conn_client    *first_conn_client; /* Linked list holding fds, IPs, and port nums for connected clients. */
@@ -67,6 +63,30 @@ struct conn_client
 struct conn_client *create_conn_client(struct server_settings *set);
 
 /**
+ * setup_socket
+ * <p>
+ * Create and bind a new socket to the given IP address and port number. Passing 0 as the port will bind
+ * the socket to an ephemeral port (random port number).
+ * </p>
+ * @param ip - the IP address to which the new socket shall be bound
+ * @param port - the port number to which the new socket shall be bound
+ * @return the file descriptor to the new socket
+ */
+int setup_socket(char *ip, in_port_t port);
+
+/**
+ * set_readfds
+ * <p>
+ * Set the readfds set for use in the select function: clear the set, then add the server's file descriptor followed by
+ * up to MAX_CLIENTS client file descriptors. Keep track of the file descriptor with the greatest value.
+ * </p>
+ * @param set - the server settings
+ * @param readfds - the file descriptor set to be monitored for read activity
+ * @return the file descriptor with the greatest value
+ */
+int set_readfds(struct server_settings *set, fd_set *readfds);
+
+/**
  * modify_timeout
  * <p>
  * Change the timeout duration based on the number of timeouts that have occurred.
@@ -74,17 +94,6 @@ struct conn_client *create_conn_client(struct server_settings *set);
  * @return
  */
 uint8_t modify_timeout(uint8_t timeout_count);
-
-/**
- * decode_message.
- * <p>
- * Load the bytes of the data buffer into the receive packet struct fields.
- * </p>
- * @param set - the server settings
- * @param data_buffer - the data buffer to load into the received packet
- * @param recv_packet - the packet struct to receive
- */
-void decode_message(struct server_settings *set, struct packet *recv_packet, const uint8_t *data_buffer);
 
 /**
  * create_pack

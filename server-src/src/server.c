@@ -6,18 +6,15 @@
 #include "../../libs/include/manager.h"
 #include "../../libs/include/util.h"
 #include "../include/server.h"
-#include "../include/server-util.h"
 #include "../include/setup.h"
 #include <arpa/inet.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 /**
- * The number of connections which may be queued at once.
+ * The number of connections which may be queued at once. NOTE: server does not currently time out.
  */
 #define MAX_TIMEOUTS_SERVER 3
 
@@ -51,16 +48,16 @@ void connect_to(struct server_settings *set);
 /**
  * do_accept
  * <p>
- * Await a SYN message from a connecting client. Respond with a SYN/ACK.
+ * Receive a message. If it is a SYN, store the sender's information and create a new socket with which to
+ * exchange messages with that sender. Send a SYN/ACK back to the sender on that socket.
  * </p>
  * @param set - the server settings
  * @param s_packet - the packet struct to send
- * @param r_packet - the packet struct to receive
  */
-void do_accept(struct server_settings *set, struct packet *s_packet);
+void do_accept(struct server_settings *set);
 
 /**
- * do_messaging.
+ * do_message.
  * <p>
  * Await a message from the connected client. If no message is received and a timeout occurs,
  * resend the last-sent packet. If a timeout occurs too many times, drop the connection.
@@ -69,8 +66,18 @@ void do_accept(struct server_settings *set, struct packet *s_packet);
  * @param s_packet - the packet struct to send
  * @param r_packet - the packet struct to receive
  */
-void do_messaging(struct server_settings *set, struct conn_client *client, struct packet *s_packet,
-                  struct packet *r_packet);
+void do_message(struct server_settings *set, struct conn_client *client);
+
+/**
+ * decode_message.
+ * <p>
+ * Load the bytes of the data buffer into the receive packet struct fields.
+ * </p>
+ * @param set - the server settings
+ * @param data_buffer - the data buffer to load into the received packet
+ * @param r_packet - the packet struct to receive
+ */
+void decode_message(struct server_settings *set, struct packet *r_packet, const uint8_t *data_buffer);
 
 /**
  * process_message
@@ -81,8 +88,8 @@ void do_messaging(struct server_settings *set, struct conn_client *client, struc
  * @param s_packet - the packet struct to send
  * @param r_packet - the packet struct to receive
  */
-void process_message(struct server_settings *set, struct conn_client *client, struct packet *s_packet,
-                     struct packet *r_packet);
+void process_message(struct server_settings *set, struct conn_client *client,
+                     struct packet *s_packet, struct packet *r_packet);
 
 /**
  * process_payload
@@ -124,8 +131,6 @@ static void set_signal_handling(struct sigaction *sa);
  */
 static void signal_handler(int sig);
 
-int setup_socket(char *ip, in_port_t port);
-
 void run(int argc, char *argv[], struct server_settings *set)
 {
     init_def_state(argc, argv, set);
@@ -134,7 +139,7 @@ void run(int argc, char *argv[], struct server_settings *set)
     
     if (!errno) await_connect(set);
     
-    // Return to main.
+    /* return to main. */
 }
 
 void open_server(struct server_settings *set)
@@ -144,33 +149,6 @@ void open_server(struct server_settings *set)
         return;
     }
     printf("\nServer running on %s:%d\n\n", set->server_ip, set->server_port);
-}
-
-int setup_socket(char *ip, in_port_t port)
-{
-    struct sockaddr_in addr;
-    int                fd;
-    
-    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        return -1;
-    }
-    
-    addr.sin_family           = AF_INET;
-    addr.sin_port             = htons(port);
-    if ((addr.sin_addr.s_addr = inet_addr(ip)) == (in_addr_t) -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        return -1;
-    }
-    
-    if (bind(fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) == -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        return -1;
-    }
-    return fd;
 }
 
 void await_connect(struct server_settings *set)
@@ -189,26 +167,15 @@ void await_connect(struct server_settings *set)
 void connect_to(struct server_settings *set)
 {
     struct conn_client *curr_cli;
-    struct packet      s_packet;
-    struct packet      r_packet;
+
+    fd_set             readfds;
+    int                max_fd;
     
-    fd_set this_readfds;
+    max_fd = set_readfds(set, &readfds);
     
-    FD_ZERO(&this_readfds);
-    FD_SET(set->server_fd, &this_readfds);
-    set->max_fd = set->server_fd;
+    // set->timeout->tv_sec = modify_timeout(timeout_count); // Here in case a timeout will be set in select.
     
-    /* Select the first MAX_CLIENTS connected clients. */
-    curr_cli = set->first_conn_client;
-    for (int num_selected_cli = 0; curr_cli != NULL && num_selected_cli < MAX_CLIENTS; ++num_selected_cli)
-    {
-        FD_SET(curr_cli->c_fd, &this_readfds); /* Add that client's fd to the set. */
-        set->max_fd = (curr_cli->c_fd > set->max_fd) ? curr_cli->c_fd : set->max_fd; /* Set new max_fd if necessary. */
-        
-        curr_cli = curr_cli->next; /* Go to next client in list. */
-    }
-    
-    if (select(set->max_fd + 1, &this_readfds, NULL, NULL, NULL) == -1)
+    if (select(max_fd + 1, &readfds, NULL, NULL, NULL) == -1)
     {
         switch (errno)
         {
@@ -226,26 +193,27 @@ void connect_to(struct server_settings *set)
         }
     }
     
-    if (FD_ISSET(set->server_fd, &this_readfds))
+    if (FD_ISSET(set->server_fd, &readfds))
     {
-        if (!errno) do_accept(set, &s_packet);
+        if (!errno) do_accept(set);
     } else
     {
         curr_cli = set->first_conn_client;
         for (int num_selected_cli = 0; curr_cli != NULL && num_selected_cli < MAX_CLIENTS; ++num_selected_cli)
         {
-            if (FD_ISSET(curr_cli->c_fd, &this_readfds))
+            if (FD_ISSET(curr_cli->c_fd, &readfds))
             {
-                if (!errno) do_messaging(set, curr_cli, &s_packet, &r_packet);
+                if (!errno) do_message(set, curr_cli);
             }
             curr_cli = curr_cli->next; /* Go to next client in list. */
         }
     }
 }
 
-void do_accept(struct server_settings *set, struct packet *s_packet)
+void do_accept(struct server_settings *set)
 {
     struct sockaddr_in from_addr;
+    struct packet      packet;
     socklen_t          size_addr_in;
     uint8_t            buffer[BUF_LEN];
     
@@ -294,72 +262,50 @@ void do_accept(struct server_settings *set, struct packet *s_packet)
                inet_ntoa(new_client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
                ntohs(new_client->addr->sin_port));
         
-        create_pack(s_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
-        if (!errno) send_resp(set, new_client, s_packet);
+        create_pack(&packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
+        if (!errno) send_resp(set, new_client, &packet);
     }
 }
 
-void do_messaging(struct server_settings *set, struct conn_client *client,
-                  struct packet *s_packet, struct packet *r_packet)
+void do_message(struct server_settings *set, struct conn_client *client)
 {
+    struct packet      s_packet;
+    struct packet      r_packet;
     uint8_t   buffer[BUF_LEN];
     socklen_t size_addr_in;
-    uint8_t   timeout_count;
     
-    timeout_count = 0;
-    size_addr_in  = sizeof(struct sockaddr_in);
-    do
+    memset(&r_packet, 0, sizeof(struct packet));
+    memset(buffer, 0, BUF_LEN);
+    
+    size_addr_in = sizeof(struct sockaddr_in);
+    
+    if (recvfrom(client->c_fd, buffer, BUF_LEN, 0, (struct sockaddr *) client->addr, &size_addr_in) == -1)
     {
-        printf("Awaiting message.\n\n");
-        
-        set->timeout->tv_sec = modify_timeout(timeout_count);
-        errno = 0;
-        if (setsockopt(client->c_fd, SOL_SOCKET, SO_RCVTIMEO,
-                       (const char *) set->timeout, sizeof(struct timeval)) == -1)
+        switch (errno)
         {
-            fatal_errno(__FILE__, __func__, __LINE__, errno);
-            running = 0;
-            return;
-        }
-        
-        memset(r_packet, 0, sizeof(struct packet));
-        memset(buffer, 0, BUF_LEN);
-        
-        if (recvfrom(client->c_fd, buffer, BUF_LEN, 0, (struct sockaddr *) client->addr, &size_addr_in) == -1)
-        {
-            switch (errno)
+            case EINTR:
             {
-                case EINTR:
-                {
-                    // running set to 0 with signal handler.
-                    return;
-                }
-                case EWOULDBLOCK:
-                {
-                    printf("Timeout occurred. Timeouts remaining: %d\n\n", (MAX_TIMEOUTS_SERVER - (timeout_count + 1)));
-                    ++timeout_count;
-                    break;
-                }
-                default:
-                {
-                    fatal_errno(__FILE__, __func__, __LINE__, errno);
-                    running = 0;
-                    return;
-                }
+                // running set to 0 with signal handler.
+                return;
             }
-        } else
-        {
-            timeout_count = 0;
-            decode_message(set, r_packet, buffer);
-            if (!errno) process_message(set, client, s_packet, r_packet);
+            default:
+            {
+                fatal_errno(__FILE__, __func__, __LINE__, errno);
+                running = 0;
+                return;
+            }
         }
-    } while (timeout_count < MAX_TIMEOUTS_SERVER && *buffer != (FLAG_FIN | FLAG_ACK));
+    } else
+    {
+        decode_message(set, &r_packet, buffer);
+        if (!errno) process_message(set, client, &s_packet, &r_packet); /* Create/send appropriate resp */
+    }
 }
 
 void decode_message(struct server_settings *set, struct packet *r_packet, const uint8_t *data_buffer)
 {
     deserialize_packet(r_packet, data_buffer);
-    if (errno == ENOTRECOVERABLE)
+    if (errno == ENOMEM)
     {
         running = 0;
         return;
@@ -373,25 +319,16 @@ void decode_message(struct server_settings *set, struct packet *r_packet, const 
 void process_message(struct server_settings *set, struct conn_client *client,
                      struct packet *s_packet, struct packet *r_packet)
 {
-    // FIN/ACK || end of 3-way do_synchronize || additional connect attempt
-    if (s_packet->flags == (FLAG_FIN | FLAG_ACK) ||
-        r_packet->flags == FLAG_ACK ||
-        r_packet->flags == FLAG_SYN)
-    {
-        return;
-    }
-    if ((r_packet->flags == FLAG_PSH) &&
-        (r_packet->seq_num == (uint8_t) (s_packet->seq_num + 1))) // Why I have to cast this, C??
+    if ((r_packet->flags == FLAG_PSH) && (r_packet->seq_num == (uint8_t) (s_packet->seq_num + 1))) // cracked cast
     {
         process_payload(set, r_packet);
         create_pack(s_packet, FLAG_ACK, r_packet->seq_num, 0, NULL);
-    }
-    if (r_packet->flags == FLAG_FIN)
+        send_resp(set, client, s_packet);
+    } else if (r_packet->flags == FLAG_FIN)
     {
         create_pack(s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
+        send_resp(set, client, s_packet);
     }
-    
-    send_resp(set, client, s_packet);
 }
 
 void process_payload(struct server_settings *set, struct packet *r_packet)
@@ -449,7 +386,7 @@ void send_resp(struct server_settings *set, struct conn_client *client, struct p
     
     set->mm->mm_free(set->mm, data_buffer);
     
-    // if from do_accept, next step is do_messaging. if from do_messaging, return to do_messaging.
+    // if from do_accept, next step is do_messaging. if from do_messaging, return to do_message.
 }
 
 void close_server(struct server_settings *set)

@@ -24,7 +24,7 @@ struct conn_client *create_conn_client(struct server_settings *set)
         return NULL;
     }
     
-    set->mm->mm_add(set->mm, new_client->addr); /* Add the new client to the memory manager. */
+    set->mm->mm_add(set->mm, new_client->addr); /* Add the addr first so it is freed first. */
     set->mm->mm_add(set->mm, new_client);
     
     if (set->first_conn_client == NULL) /* Add the new client to the back of the connected client list. */
@@ -45,6 +45,55 @@ struct conn_client *create_conn_client(struct server_settings *set)
     return new_client;
 }
 
+int setup_socket(char *ip, in_port_t port)
+{
+    struct sockaddr_in addr;
+    int                fd;
+    
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return -1;
+    }
+    
+    addr.sin_family           = AF_INET;
+    addr.sin_port             = htons(port);
+    if ((addr.sin_addr.s_addr = inet_addr(ip)) == (in_addr_t) -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return -1;
+    }
+    
+    if (bind(fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) == -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return -1;
+    }
+    return fd;
+}
+
+int set_readfds(struct server_settings *set, fd_set *readfds)
+{
+    struct conn_client *curr_cli;
+    int                max_fd;
+    
+    FD_ZERO(readfds); /* Clean the readfds. */
+    FD_SET(set->server_fd, readfds);
+    max_fd = set->server_fd;
+    
+    /* Select the first MAX_CLIENTS connected clients. */
+    curr_cli = set->first_conn_client;
+    for (int num_selected_cli = 0; curr_cli != NULL && num_selected_cli < MAX_CLIENTS; ++num_selected_cli)
+    {
+        FD_SET(curr_cli->c_fd, readfds); /* Add that client's fd to the set. */
+        
+        max_fd = (curr_cli->c_fd > max_fd) ? curr_cli->c_fd : max_fd; /* Set new max_fd if necessary. */
+        
+        curr_cli = curr_cli->next; /* Go to next client in list. */
+    }
+    
+    return max_fd;
+}
 
 uint8_t modify_timeout(uint8_t timeout_count)
 {
