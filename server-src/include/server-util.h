@@ -28,8 +28,9 @@ static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-cons
  * <li>server_ip: the server's ip address</li>
  * <li>server_port: the server's port number</li>
  * <li>server_fd: file descriptor of the socket listening for connections</li>
- * <li>max_fd: the maximum value of the file descriptor</li>
- * <li>output_fd: file descriptor for the output</li>
+ * <li>timeout: timeval used to determine time server will await a message before acting</li>
+ * <li>first_conn_client: Head of linked list holding communication information of connected clients</li>
+ * <li>mm: a memory manager for the server</li>
  * </ul>
  * </p>
  */
@@ -40,14 +41,23 @@ struct server_settings
     int       server_fd;
     
     struct timeval        *timeout;
-    struct conn_client    *first_conn_client; /* Linked list holding fds, IPs, and port nums for connected clients. */
+    struct conn_client    *first_conn_client; /*  */
     struct memory_manager *mm;
 };
 
+/**
+ * conn_client
+ * <p>
+ * Represents an individual client connected to the server. The server uses this struct to keep track of the connected
+ * client's socket file descriptor, address information, and their last sent and received packets.
+ * <p>
+ */
 struct conn_client
 {
     int                c_fd;
     struct sockaddr_in *addr;
+    struct packet      *s_packet;
+    struct packet      *r_packet;
     
     struct conn_client *next;
 };

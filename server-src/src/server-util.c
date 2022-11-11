@@ -18,14 +18,28 @@ struct conn_client *create_conn_client(struct server_settings *set)
     {
         return NULL;
     }
-    
-    if ((new_client->addr = s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__)) == NULL)
+    if ((new_client->addr     = s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__)) == NULL)
     {
         free(new_client);
         return NULL;
     }
+    if ((new_client->s_packet = s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__)) == NULL)
+    {
+        free(new_client->addr);
+        free(new_client);
+        return NULL;
+    }
+    if ((new_client->r_packet = s_calloc(1, sizeof(struct packet), __FILE__, __func__, __LINE__)) == NULL)
+    {
+        free(new_client->addr);
+        free(new_client->s_packet);
+        free(new_client);
+        return NULL;
+    }
     
-    set->mm->mm_add(set->mm, new_client->addr); /* Add the addr first so it is freed first. */
+    set->mm->mm_add(set->mm, new_client->r_packet); /* Add the members of new client first that they are freed first. */
+    set->mm->mm_add(set->mm, new_client->s_packet);
+    set->mm->mm_add(set->mm, new_client->addr);
     set->mm->mm_add(set->mm, new_client);
     
     if (set->first_conn_client == NULL) /* Add the new client to the back of the connected client list. */
@@ -125,6 +139,6 @@ void create_pack(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t
     
     packet->flags   = flags;
     packet->seq_num = seq_num;
-    packet->length = len;
+    packet->length  = len;
     packet->payload = payload;
 }

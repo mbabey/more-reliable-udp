@@ -344,7 +344,7 @@ void send_msg(struct client_settings *set, struct packet *s_packet)
         return;
     }
     
-    printf("Sent packet:\n\tFlags: %s\n\tLength: %zu\n\n", check_flags(s_packet->flags), packet_size);
+    printf("Sent packet:\n\tFlags: %s\n\tSequence number: %d\n\n", check_flags(s_packet->flags), s_packet->seq_num);
     
     set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
@@ -474,7 +474,7 @@ void retransmit_packet(struct client_settings *set, struct packet *s_packet)
         return;
     }
     
-    printf("Sent packet:\n\tFlags: %s\n\tLength: %zu\n\n", check_flags(*serialized_packet), packet_size);
+    printf("Sent packet:\n\tFlags: %s\n\tSequence number: %d\n\n", check_flags(*serialized_packet), s_packet->seq_num);
     
     set->mem_manager->mm_free(set->mem_manager, serialized_packet);
 }
@@ -482,7 +482,7 @@ void retransmit_packet(struct client_settings *set, struct packet *s_packet)
 void
 process_response(struct client_settings *set, const uint8_t *recv_buffer) // TODO(maxwell): Will eventually set errno
 {
-    printf("Received response:\n\tFlags: %s\n", check_flags(*recv_buffer));
+    printf("Received response:\n\tFlags: %s\n\tSequence number: %d\n", check_flags(*recv_buffer), *(recv_buffer + 1));
     
     if (*recv_buffer == FLAG_PSH)
     {
