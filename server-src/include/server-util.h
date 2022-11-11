@@ -69,7 +69,7 @@ struct conn_client *create_conn_client(struct server_settings *set);
 /**
  * modify_timeout
  * <p>
- * Change the timeout duration based on the number of timeouts that have occured.
+ * Change the timeout duration based on the number of timeouts that have occurred.
  * </p>
  * @return
  */
@@ -81,7 +81,7 @@ uint8_t modify_timeout(uint8_t timeout_count);
  * Load the bytes of the data buffer into the receive packet struct fields.
  * </p>
  * @param set - the server settings
- * @param send_packet - the packet struct to send
+ * @param data_buffer - the data buffer to load into the received packet
  * @param recv_packet - the packet struct to receive
  */
 void decode_message(struct server_settings *set, struct packet *recv_packet, const uint8_t *data_buffer);
@@ -89,12 +89,14 @@ void decode_message(struct server_settings *set, struct packet *recv_packet, con
 /**
  * create_pack
  * <p>
- * Zero the send packet. Set the flags and the sequence number.
+ * Zero a struct packet. Set the flags, sequence number, length, and payload.
  * </p>
+ * @param packet - the packet struct to initialize
  * @param flags - the flags to set in the send packet
  * @param seq_num - the sequence number to set in the send packet
- * @param send_packet - the packet struct to send
+ * @param len - the length of the payload
+ * @param payload - the payload
  */
-void create_pack(struct packet *send_packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
+void create_pack(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
 
 #endif //RELIABLE_UDP_SERVER_UTIL_HPP
