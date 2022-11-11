@@ -255,7 +255,7 @@ void do_messaging(struct client_settings *set)
             if (!errno)
             {
                 uint8_t flags[] = {FLAG_ACK};
-                await_msg(set, &s_packet, flags, 0);
+                await_msg(set, &s_packet, flags, sizeof(flags));
             }
             
             set->mm->mm_free(set->mm, msg);
