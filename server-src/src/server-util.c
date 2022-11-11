@@ -2,10 +2,11 @@
 // Created by Maxwell Babey on 11/9/22.
 //
 
-#include "../../libs/include/manager.h"
-#include "../include/server-util.h"
 #include "../include/setup.h"
+#include "../include/server-util.h"
 #include "../../libs/include/error.h"
+#include "../../libs/include/manager.h"
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
