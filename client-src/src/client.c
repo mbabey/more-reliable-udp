@@ -171,7 +171,7 @@ void run_client(int argc, char *argv[], struct client_settings *settings)
     init_def_state(argc, argv, settings);
     
     open_client_socket(settings);
-    if (!errno) do_messaging(settings);
+    if (!errno) { do_messaging(settings); }
 }
 
 void open_client_socket(struct client_settings *set)
@@ -209,10 +209,10 @@ void do_connect(struct client_settings *set)
     
     create_packet(&s_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     send_msg(set, &s_packet);
-    if (!errno) await_msg(set, &s_packet, FLAG_SYN | FLAG_ACK);
+    if (!errno) { await_msg(set, &s_packet, FLAG_SYN | FLAG_ACK); }
     
     create_packet(&s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
-    if (!errno) send_msg(set, &s_packet);
+    if (!errno) { send_msg(set, &s_packet); }
 }
 
 void do_messaging(struct client_settings *set)
@@ -226,7 +226,7 @@ void do_messaging(struct client_settings *set)
     struct sigaction sa;
     set_signal_handling(&sa);
     
-    if (errno) return; /* set_signal_handling may have failed. */
+    if (errno) { return; /* set_signal_handling may have failed. */ }
     
     running = 1;
     
@@ -241,7 +241,7 @@ void do_messaging(struct client_settings *set)
             
             printf("Sending message: %s\n\n", msg);
             send_msg(set, &s_packet);
-            if (!errno) await_msg(set, &s_packet, FLAG_ACK);
+            if (!errno) { await_msg(set, &s_packet, FLAG_ACK); }
             
             set->mm->mm_free(set->mm, msg);
         }
@@ -249,7 +249,7 @@ void do_messaging(struct client_settings *set)
         msg = NULL; // TODO(maxwell): input = NULL
     }
     
-    if (!errno) do_fin_seq(set);
+    if (!errno) { do_fin_seq(set); }
 }
 
 void do_fin_seq(struct client_settings *set)
@@ -258,12 +258,12 @@ void do_fin_seq(struct client_settings *set)
     
     create_packet(&s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
     send_msg(set, &s_packet);
-    if (!errno) await_msg(set, &s_packet, FLAG_FIN | FLAG_ACK);
-    if (!errno) await_msg(set, &s_packet, FLAG_FIN);
+    if (!errno) { await_msg(set, &s_packet, FLAG_FIN | FLAG_ACK); }
+    if (!errno) { await_msg(set, &s_packet, FLAG_FIN); }
     
     create_packet(&s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
-    if (!errno) send_msg(set, &s_packet);
-    if (!errno) await_msg(set, &s_packet, FLAG_FIN);
+    if (!errno) { send_msg(set, &s_packet); }
+    if (!errno) { await_msg(set, &s_packet, FLAG_FIN); }
 }
 
 char *read_msg(struct client_settings *set, char *msg) // TODO(maxwell): deprecated, here for testing purposes
@@ -468,7 +468,7 @@ void retransmit_packet(struct client_settings *set, struct packet *s_packet)
 }
 
 void
-process_response(struct client_settings *set, const uint8_t *recv_buffer) // TODO(maxwell): Will eventually set errno
+process_response(struct client_settings *set, const uint8_t *recv_buffer) // NOLINT(-Wunused-parameter) : will be used
 {
     printf("Received response:\n\tFlags: %s\n\tSequence number: %d\n", check_flags(*recv_buffer), *(recv_buffer + 1));
     

@@ -47,7 +47,7 @@ void set_client_defaults(struct client_settings *set)
     
     if ((set->mm = init_memory_manager()) == NULL)
     {
-        exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
     }
     
     if ((set->timeout = (struct timeval *) s_calloc(1, sizeof(struct timeval),
