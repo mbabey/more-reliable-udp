@@ -56,6 +56,16 @@ void do_connect(struct client_settings *set);
 void do_messaging(struct client_settings *set);
 
 /**
+ * get_input
+ * <p>
+ * Call the controller pointed to by the client settings struct to turn the light on and take user input.
+ * </p>
+ * @param set - the client settings
+ * @return - an integer representing the player's choice of grid location upon which to play
+ */
+uint8_t get_input(struct client_settings *set);
+
+/**
  * do_fin_seq
  * <p>
  * Send a FIN packet. Wait for a FIN/ACK packet and a FIN packet. Send a FIN/ACK packet. Wait to see if the
@@ -99,17 +109,7 @@ void send_msg(struct client_settings *set);
  * @param s_packet - the packet to retransmit, if necessary
  * @param flag_set - the expected flags to be received
  */
-void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags);
-
-/**
- * read_msg
- * <p>
- * Read a message from the user.
- * </p>
- * @param set - the client settings
- * @param msg - the message to be made a payload
- */
-char *read_msg(struct client_settings *set, char *msg);
+void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags, uint8_t seq_num);
 
 /**
  * hande_recv_timeout
@@ -211,7 +211,7 @@ void do_connect(struct client_settings *set)
     if (!errno)
     {
         uint8_t flag_set[] = {FLAG_SYN | FLAG_ACK};
-        await_msg(set, flag_set, sizeof(flag_set));
+        await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
     
     create_packet(set->s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
@@ -222,7 +222,7 @@ void do_connect(struct client_settings *set)
 void do_messaging(struct client_settings *set)
 {
     struct sigaction sa;
-    uint8_t          seq = (uint8_t) 0;
+    uint8_t          input;
     
     set_signal_handling(&sa);
     
@@ -232,34 +232,42 @@ void do_messaging(struct client_settings *set)
     running = 1;
     while (running)
     {
+        set->turn = false; /* Clean the turn indicator. */
+    
+        /* Update game board, set turn. */
         { /* Scoped to allow variable name consistency. */
             uint8_t flag_set[] = {FLAG_PSH, FLAG_PSH | FLAG_TRN};
-            await_msg(set, flag_set, sizeof(flag_set));
-            create_packet(set->s_packet, FLAG_ACK, set->r_packet->seq_num, 0, NULL);
-            send_msg(set);
+            await_msg(set, flag_set, sizeof(flag_set), (uint8_t) (set->s_packet->seq_num + 1));
         }
+        
+        create_packet(set->s_packet, FLAG_ACK, set->r_packet->seq_num, 0, NULL);
+        send_msg(set);
         
         if (set->turn)
         {
-            // input = get_input(set) // TODO: what is the type of input?
+            input = get_input(set); // TODO(m / p): get_input will turn the light on. After input taken, turn light off
             
-            /* Create a packet and increment the sequence number. */
-            create_packet(set->s_packet, FLAG_PSH, set->r_packet->seq_num + 1, input_len, input); // TODO: send input
-    
+            /* Send input to server. */
+            create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
+                          sizeof(input), &input);
             send_msg(set);
+            
             if (!errno)
             {
                 uint8_t flag_set[] = {FLAG_ACK};
-                await_msg(set, flag_set, sizeof(flag_set));
+                await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
             }
-            
         }
-        
-        input = NULL; // TODO(maxwell): input = NULL
     }
     
     if (!errno)
     { do_fin_seq(set); }
+}
+
+uint8_t get_input(struct client_settings *set)
+{
+    // TODO(m / p): this will call the controller, which will return the input. This function should probably belong to the controller.
+    return 0;
 }
 
 void do_fin_seq(struct client_settings *set)
@@ -269,12 +277,12 @@ void do_fin_seq(struct client_settings *set)
     if (!errno)
     {
         uint8_t flag_set[] = {FLAG_FIN | FLAG_ACK};
-        await_msg(set, flag_set, sizeof(flag_set));
+        await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
     if (!errno)
     {
         uint8_t flag_set[] = {FLAG_FIN};
-        await_msg(set, flag_set, sizeof(flag_set));
+        await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
     
     create_packet(set->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
@@ -283,7 +291,7 @@ void do_fin_seq(struct client_settings *set)
     if (!errno)
     {
         uint8_t flag_set[] = {FLAG_FIN};
-        await_msg(set, flag_set, sizeof(flag_set));
+        await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
 }
 
@@ -312,17 +320,18 @@ void send_msg(struct client_settings *set)
         return;
     }
     
-    printf("Sent packet:\n\tFlags: %s\n\tSequence number: %d\n\n", check_flags(set->s_packet->flags), set->s_packet->seq_num);
+    printf("Sent packet:\n\tFlags: %s\n\tSequence number: %d\n\n", check_flags(set->s_packet->flags),
+           set->s_packet->seq_num);
     
     set->mm->mm_free(set->mm, serialized_packet);
 }
 
-void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags)
+void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags, uint8_t seq_num)
 {
-    socklen_t          sockaddr_in_size;
-    uint8_t            recv_buffer[BUF_LEN];
-    bool               correct_packet;
-    int                num_timeouts;
+    socklen_t sockaddr_in_size;
+    uint8_t   recv_buffer[BUF_LEN];
+    bool      correct_packet;
+    int       num_timeouts;
     
     set->timeout->tv_sec = BASE_TIMEOUT;
     
@@ -333,8 +342,9 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags)
     {
         for (size_t i = 0; i < num_flags; ++i)
         {
-            printf("\nAwaiting response with flags: %s\n", check_flags(flag_set[i]));
+            printf("\nAwaiting response with flags: %s", check_flags(flag_set[i]));
         }
+        printf("\n");
         
         /* Update socket's timeout. */
 //        if (setsockopt(set->server_fd,
@@ -379,7 +389,7 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags)
             for (size_t i = 0; !correct_packet && i < num_flags; ++i) /* For each flag in the set, */
             {
                 /* Check against the seq num and flags in the recv_buffer. If either is invalid, we have the wrong packet. */
-                correct_packet = *recv_buffer == flag_set[i] && *(recv_buffer + 1) == set->s_packet->seq_num;
+                correct_packet = *recv_buffer == flag_set[i] && *(recv_buffer + 1) == seq_num;
             }
             
             if (!correct_packet)
@@ -390,7 +400,6 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags)
     } while (!correct_packet); /* While the packet we received is not correct */
     
     process_response(set, recv_buffer); /* Once we have the correct packet, we will process it */
-    
 }
 
 int handle_recv_timeout(struct client_settings *set, int num_timeouts) // TODO(maxwell): implement changing timeout
@@ -452,27 +461,36 @@ void retransmit_packet(struct client_settings *set)
         return;
     }
     
-    printf("\nSent packet:\n\tFlags: %s\n\tSequence number: %d\n", check_flags(*serialized_packet), set->s_packet->seq_num);
+    printf("\nSent packet:\n\tFlags: %s\n\tSequence number: %d\n", check_flags(*serialized_packet),
+           set->s_packet->seq_num);
     
     set->mm->mm_free(set->mm, serialized_packet);
 }
 
-void
-process_response(struct client_settings *set, const uint8_t *recv_buffer) // NOLINT(-Wunused-parameter) : will be used
+void process_response(struct client_settings *set, const uint8_t *recv_buffer)
 {
     printf("\nReceived response:\n\tFlags: %s\n\tSequence number: %d\n", check_flags(*recv_buffer), *(recv_buffer + 1));
     
-    if (*recv_buffer & FLAG_TRN) /* Indicates that it is this client's turn. */
+    deserialize_packet(set->r_packet, recv_buffer);
+    if (errno == ENOMEM)
+    {
+        running = 0;
+        return;
+    }
+    set->mm->mm_add(set->mm, set->r_packet->payload);
+    
+    if (set->r_packet->flags & FLAG_TRN) /* Indicates that it is this client's turn. */
     {
         set->turn = true;
-        printf("\nTurn set\n");
+        printf("\nYour turn!\n");
     }
     
-    if (*recv_buffer & FLAG_PSH) /* Indicates that the packet contains data which must be displayed. */
+    if (set->r_packet->flags & FLAG_PSH) /* Indicates that the packet contains data which must be displayed. */
     {
-        printf("\nUI updated.\n");
+        printf("\nUI updated.\n"); // TODO(maxwell): show board here
     }
     
+    set->mm->mm_free(set->mm, set->r_packet->payload);
 }
 
 void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)

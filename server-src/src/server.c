@@ -332,6 +332,8 @@ void process_message(struct server_settings *set, struct conn_client *client)
         create_pack(client->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
         send_resp(set, client);
     }
+    
+    set->mm->mm_free(set->mm, client->r_packet->payload);
 }
 
 void process_payload(struct server_settings *set, struct packet *r_packet)
