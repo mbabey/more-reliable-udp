@@ -99,7 +99,8 @@ void send_msg(struct client_settings *set, struct packet *s_packet);
  * @param s_packet - the packet to retransmit, if necessary
  * @param flag_set - the expected flags to be received
  */
-void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t *flag_set, size_t num_flags);
+void await_msg(struct client_settings *set, struct packet *s_packet, struct packet *r_packet, uint8_t *flag_set,
+               size_t num_flags);
 
 /**
  * read_msg
@@ -212,8 +213,8 @@ void do_connect(struct client_settings *set)
     send_msg(set, &s_packet);
     if (!errno)
     {
-        uint8_t flags[] = {FLAG_SYN | FLAG_ACK};
-        await_msg(set, &s_packet, flags, sizeof(flags));
+        uint8_t flag_set[] = {FLAG_SYN | FLAG_ACK};
+        await_msg(set, &s_packet, &r_packet, flag_set, sizeof(flag_set));
     }
     
     create_packet(&s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
@@ -223,45 +224,43 @@ void do_connect(struct client_settings *set)
 
 void do_messaging(struct client_settings *set)
 {
-    struct packet s_packet;
-    
-    uint8_t seq = (uint8_t) 0;
-    
-    char *msg = NULL;
-    
     struct sigaction sa;
+    struct packet    s_packet;
+    struct packet    r_packet;
+    uint8_t          seq = (uint8_t) 0;
+    
     set_signal_handling(&sa);
     
     if (errno)
     { return; /* set_signal_handling may have failed. */ }
     
     running = 1;
-    
     while (running)
     {
-        // Await a PSH or a PSH/TRN???
+        { /* Scoped to allow variable name consistency. */
+            uint8_t flag_set[] = {FLAG_PSH, FLAG_PSH | FLAG_TRN};
+            await_msg(set, &s_packet, &r_packet, flag_set, sizeof(flag_set));
+            create_packet(&s_packet, FLAG_ACK, seq, 0, NULL);
+            send_msg(set, &s_packet);
+        }
         
-        msg = read_msg(set, msg); // TODO(maxwell): this will be 'take input'
-        
-        if (msg != NULL) // TODO(maxwell): this will be 'is_turn'
+        if (set->turn)
         {
-            // msg = get_input(set)
+            // input = get_input(set) // TODO: what is the type of input?
             
             /* Create a packet and increment the sequence number. */
-            create_packet(&s_packet, FLAG_PSH, seq++, strlen(msg), (uint8_t *) msg);
+            create_packet(&s_packet, FLAG_PSH, seq++, input_len, input); // TODO: send input
             
-            printf("Sending message: %s\n\n", msg);
             send_msg(set, &s_packet);
             if (!errno)
             {
-                uint8_t flags[] = {FLAG_ACK};
-                await_msg(set, &s_packet, flags, sizeof(flags));
+                uint8_t flag_set[] = {FLAG_ACK};
+                await_msg(set, &s_packet, &r_packet, flag_set, sizeof(flag_set));
             }
             
-            set->mm->mm_free(set->mm, msg);
         }
         
-        msg = NULL; // TODO(maxwell): input = NULL
+        input = NULL; // TODO(maxwell): input = NULL
     }
     
     if (!errno)
@@ -276,13 +275,13 @@ void do_fin_seq(struct client_settings *set)
     send_msg(set, &s_packet);
     if (!errno)
     {
-        uint8_t flags[] = {FLAG_FIN | FLAG_ACK};
-        await_msg(set, &s_packet, flags, sizeof(flags));
+        uint8_t flag_set[] = {FLAG_FIN | FLAG_ACK};
+        await_msg(set, &s_packet, &r_packet, flag_set, sizeof(flag_set));
     }
     if (!errno)
     {
-        uint8_t flags[] = {FLAG_FIN};
-        await_msg(set, &s_packet, flags, sizeof(flags));
+        uint8_t flag_set[] = {FLAG_FIN};
+        await_msg(set, &s_packet, &r_packet, flag_set, sizeof(flag_set));
     }
     
     create_packet(&s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
@@ -290,44 +289,9 @@ void do_fin_seq(struct client_settings *set)
     { send_msg(set, &s_packet); }
     if (!errno)
     {
-        uint8_t flags[] = {FLAG_FIN};
-        await_msg(set, &s_packet, flags, sizeof(flags));
+        uint8_t flag_set[] = {FLAG_FIN};
+        await_msg(set, &s_packet, &r_packet, flag_set, sizeof(flag_set));
     }
-}
-
-char *read_msg(struct client_settings *set, char *msg) // TODO(maxwell): deprecated, here for testing purposes
-{
-    char input[BUF_LEN];
-    
-    printf("Please enter the string you wish to send: \n");
-    
-    errno = 0;
-    if (fgets(input, BUF_LEN, stdin) == NULL)
-    {
-        if (errno == EINTR) /* If the user presses ctrl+C during input. */
-        {
-            errno = 0;
-            return NULL;
-        }
-        if (feof(stdin)) /* If the user presses ctrl+D during input. */
-        {
-            errno = 0;
-            running = 0;
-            return NULL;
-        }
-    }
-    
-    input[strcspn(input, "\n")] = '\0';
-    
-    set_string(&msg, input);
-    if (errno == ENOMEM) /* If a catastrophic error occurred in set_string. */
-    {
-        running = 0;
-        return NULL;
-    }
-    set->mm->mm_add(set->mm, msg);
-    
-    return msg;
 }
 
 void send_msg(struct client_settings *set, struct packet *s_packet)
@@ -360,7 +324,8 @@ void send_msg(struct client_settings *set, struct packet *s_packet)
     set->mm->mm_free(set->mm, serialized_packet);
 }
 
-void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t *flag_set, size_t num_flags)
+void await_msg(struct client_settings *set, struct packet *s_packet, struct packet *r_packet, uint8_t *flag_set,
+               size_t num_flags)
 {
     socklen_t          sockaddr_in_size;
     struct sockaddr_in from_addr;
@@ -510,6 +475,7 @@ process_response(struct client_settings *set, const uint8_t *recv_buffer) // NOL
     
     if (*recv_buffer & FLAG_TRN) /* Indicates that it is this client's turn. */
     {
+        set->turn = true;
         printf("\nTurn set\n");
     }
     

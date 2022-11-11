@@ -16,9 +16,12 @@
  * <li>server_ip: the server's ip address</li>
  * <li>server_port: the server's port number</li>
  * <li>server_fd: file descriptor of the socket connected to the server</li>
+ * <li>turn: whether it is this client's turn</li>
  * <li>server_addr: the address of the server connection</li>
  * <li>timeout: timeval used to determine time client will await a message before acting</li>
  * <li>mm: a memory manager for the client</li>
+ * <li>s_packet: the last-sent packet for this client</li>
+ * <li>r_packet: the last-received packet for this client</li>
  * </ul>
  * </p>
  */
@@ -27,10 +30,14 @@ struct client_settings
     char      *server_ip;
     in_port_t server_port;
     int       server_fd;
+    bool turn;
     
     struct sockaddr_in    *server_addr;
     struct timeval        *timeout;
     struct memory_manager *mm;
+    
+    struct packet *s_packet;
+    struct packet *r_packet;
 };
 
 /**

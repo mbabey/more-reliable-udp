@@ -22,6 +22,17 @@
 void set_client_defaults(struct client_settings *set);
 
 /**
+ * allocate_defaults
+ * <p>
+ * Allocate memory for timeval and packet structs in client settings. Initialize memory manager. Add timeval and
+ * packet structs to memory manager. Return -1 if any allocation is unsuccessful. Return 0 otherwise.
+ * </p>
+ * @param set - the client settings
+ * @return -1 if an allocation fails, 0 otherwise
+ */
+int allocate_defaults(struct client_settings *set);
+
+/**
  * parse_arguments
  * <p>
  * Parse the command line arguments and set values in the set appropriately.
@@ -44,20 +55,47 @@ void set_client_defaults(struct client_settings *set)
 {
     memset(set, 0, sizeof(struct client_settings));
     set->server_port = DEFAULT_PORT;
+    set->turn        = false;
     
-    if ((set->mm = init_memory_manager()) == NULL)
+    if (allocate_defaults(set) == -1)
     {
         exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
     }
-    
-    if ((set->timeout = (struct timeval *) s_calloc(1, sizeof(struct timeval),
-            __FILE__, __func__, __LINE__)) ==  NULL)
+}
+
+int allocate_defaults(struct client_settings *set)
+{
+    if ((set->mm       = init_memory_manager()) == NULL)
+    {
+        return -1;
+    }
+    if ((set->timeout  = (struct timeval *) s_calloc(1, sizeof(struct timeval),
+                                                     __FILE__, __func__, __LINE__)) == NULL)
     {
         free_memory_manager(set->mm);
-        exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
+        return -1;
+    }
+    if ((set->s_packet = (struct packet *) s_calloc(1, sizeof(struct packet),
+                                                    __FILE__, __func__, __LINE__)) == NULL)
+    {
+        free(set->timeout);
+        free_memory_manager(set->mm);
+        return -1;
+    }
+    if ((set->r_packet = (struct packet *) s_calloc(1, sizeof(struct packet),
+                                                    __FILE__, __func__, __LINE__)) == NULL)
+    {
+        free(set->s_packet);
+        free(set->timeout);
+        free_memory_manager(set->mm);
+        return -1;
     }
     
     set->mm->mm_add(set->mm, set->timeout);
+    set->mm->mm_add(set->mm, set->s_packet);
+    set->mm->mm_add(set->mm, set->r_packet);
+    
+    return 0;
 }
 
 void parse_arguments(int argc, char *argv[], struct client_settings *set)

@@ -40,10 +40,10 @@ struct memory_manager *init_memory_manager(void);
  * <p>
  * Free all memory stored in the memory manager, then free the memory manager.
  * </p>
- * @param mem_manager - the memory manager to free.
+ * @param manager - the memory manager to free.
  * @return the number of memory addresses freed, or -1 if the memory manager passed is NULL
  */
-int free_memory_manager(struct memory_manager *mem_manager);
+int free_memory_manager(struct memory_manager *manager);
 
 /**
  * s_malloc

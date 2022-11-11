@@ -246,7 +246,7 @@ void do_accept(struct server_settings *set)
         struct conn_client *new_client;
         
         /* Initialize storage for information about the new client. */
-        if ((new_client = create_conn_client(set)) == NULL)
+        if ((new_client = create_conn_client(set)) == NULL) // TODO(maxwell): the client is never removed from the linked list.
         {
             running = 0;
             return; // errno set

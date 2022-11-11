@@ -18,7 +18,7 @@
  * @param mem - the memory to add.
  * @return - the address of the node added, NULL on failure
  */
-void *mm_add(struct memory_manager *mem_manager, void *mem);
+void *mm_add(struct memory_manager *manager, void *mem);
 
 /**
  * mm_free
@@ -26,11 +26,11 @@ void *mm_add(struct memory_manager *mem_manager, void *mem);
  * Free the parameter memory address and remove it from the memory manager.
  * Set return -1 and errno to [EFAULT] if the memory address cannot be located in the memory manager.
  * </p>
- * @param mem_manager - the memory manager to search
+ * @param manager - the memory manager to search
  * @param mem - the memory address to free
  * @return 0 on success, -1 on failure
  */
-int mm_free(struct memory_manager *mem_manager, void *mem);
+int mm_free(struct memory_manager *manager, void *mem);
 
 /**
  * mm_free_all
@@ -39,7 +39,7 @@ int mm_free(struct memory_manager *mem_manager, void *mem);
  * </p>
  * @return the number of memory items freed on success, -1 on failure
  */
-int mm_free_all(struct memory_manager *mem_manager);
+int mm_free_all(struct memory_manager *manager);
 
 /**
  * mm_free_recurse
@@ -89,21 +89,21 @@ struct memory_manager *init_memory_manager(void)
     return mm;
 }
 
-int free_memory_manager(struct memory_manager *mem_manager)
+int free_memory_manager(struct memory_manager *manager)
 {
-    if (mem_manager == NULL)
+    if (manager == NULL)
     {
         errno = EFAULT;
         return -1;
     }
     
-    mem_manager->mm_free_all(mem_manager);
-    free(mem_manager);
+    manager->mm_free_all(manager);
+    free(manager);
     
     return 0;
 }
 
-void *mm_add(struct memory_manager *mem_manager, void *mem)
+void *mm_add(struct memory_manager *manager, void *mem)
 {
     struct memory_address *ma     = NULL;
     struct memory_address *ma_cur = NULL;
@@ -117,15 +117,15 @@ void *mm_add(struct memory_manager *mem_manager, void *mem)
     ma->addr = mem;
     ma->next = NULL;
     
-    if (mem_manager->head == NULL)
+    if (manager->head == NULL)
     {
-        mem_manager->head = ma;
+        manager->head = ma;
         return ma;
     }
     
     bool                  exists  = false;
     
-    ma_cur = mem_manager->head;
+    ma_cur = manager->head;
     while (ma_cur->next != NULL)
     {
         if (ma_cur->addr == ma->addr)
@@ -143,12 +143,12 @@ void *mm_add(struct memory_manager *mem_manager, void *mem)
     return ma;
 }
 
-int mm_free(struct memory_manager *mem_manager, void *mem)
+int mm_free(struct memory_manager *manager, void *mem)
 {
     struct memory_address *ma      = NULL;
     struct memory_address *ma_prev = NULL;
     
-    ma = mem_manager->head;
+    ma = manager->head;
     while (ma->addr != mem && ma != NULL)
     {
         ma_prev = ma;
@@ -161,9 +161,9 @@ int mm_free(struct memory_manager *mem_manager, void *mem)
         return -1;
     }
     
-    if (ma == mem_manager->head)
+    if (ma == manager->head)
     {
-        mem_manager->head = ma->next;
+        manager->head = ma->next;
     } else
     {
         ma_prev->next = ma->next;
@@ -175,11 +175,11 @@ int mm_free(struct memory_manager *mem_manager, void *mem)
     return 0;
 }
 
-int mm_free_all(struct memory_manager *mem_manager)
+int mm_free_all(struct memory_manager *manager)
 {
     int m_freed;
     
-    m_freed = mm_free_recurse(mem_manager->head);
+    m_freed = mm_free_recurse(manager->head);
     
     return m_freed;
 }
