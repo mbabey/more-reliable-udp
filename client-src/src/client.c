@@ -124,7 +124,7 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags,
  * @return -1 if the timeout count has been exceeded, 0 if it has not
  */
 int
-handle_recv_timeout(struct client_settings *set, int num_timeouts);
+handle_timeout(struct client_settings *set, int num_timeouts);
 
 /**
  * process_response
@@ -204,7 +204,7 @@ void do_connect(struct client_settings *set)
 {
     memset(set->s_packet, 0, sizeof(struct packet));
     
-    printf("\nConnecting to server %s:%u\n\n", set->server_ip, set->server_port);
+    printf("\nConnecting to server %s:%u\n", set->server_ip, set->server_port);
     
     create_packet(set->s_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     send_msg(set);
@@ -369,7 +369,7 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags,
                 }
                 case EWOULDBLOCK: /* If the socket times out */
                 {
-                    if (handle_recv_timeout(set, ++num_timeouts) == -1)
+                    if (handle_timeout(set, ++num_timeouts) == -1)
                     {
                         return;
                     }
@@ -402,7 +402,7 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags,
     process_response(set, recv_buffer); /* Once we have the correct packet, we will process it */
 }
 
-int handle_recv_timeout(struct client_settings *set, int num_timeouts) // TODO(maxwell): implement changing timeout
+int handle_timeout(struct client_settings *set, int num_timeouts) // TODO(maxwell): implement changing timeout
 {
     printf("\nTimeout occurred, timeouts remaining: %d\n", (MAX_TIMEOUT - num_timeouts));
     
@@ -414,7 +414,7 @@ int handle_recv_timeout(struct client_settings *set, int num_timeouts) // TODO(m
         return -1;
     }
     
-    // Waiting to see if final FIN/ACK sent successfully.
+    // Timeout after sending FIN/ACK.
     if (num_timeouts >= MAX_TIMEOUT && set->s_packet->flags == (FLAG_FIN | FLAG_ACK))
     {
         printf("\nAssuming server terminated, disconnecting.\n");
