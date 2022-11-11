@@ -366,13 +366,13 @@ void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t rec
         printf("Awaiting response with flags: %s\n\n", check_flags(recv_flags));
         
         /* Update our socket's timeout. */
-        if (setsockopt(set->server_fd,
-                       SOL_SOCKET, SO_RCVTIMEO, (const char *) set->timeout, sizeof(struct timeval)) == -1)
-        {
-            fatal_errno(__FILE__, __func__, __LINE__, errno);
-            running = 0;
-            return;
-        }
+//        if (setsockopt(set->server_fd,
+//                       SOL_SOCKET, SO_RCVTIMEO, (const char *) set->timeout, sizeof(struct timeval)) == -1)
+//        {
+//            fatal_errno(__FILE__, __func__, __LINE__, errno);
+//            running = 0;
+//            return;
+//        }
         
         memset(recv_buffer, 0, BUF_LEN); /* Clear our reception buffer. */
     

@@ -192,28 +192,28 @@ void connect_to(struct server_settings *set)
     struct packet      s_packet;
     struct packet      recv_packet;
     
-    FD_ZERO(&set->readfds);
-    FD_SET(set->server_fd, &set->readfds);
+    fd_set this_readfds;
+    
+    FD_ZERO(&this_readfds);
+    FD_SET(set->server_fd, &this_readfds);
     set->max_fd = set->server_fd;
     
     /* Select the first MAX_CLIENTS connected clients. */
     curr_cli = set->first_conn_client;
     for (int num_selected_cli = 0; curr_cli != NULL && num_selected_cli < MAX_CLIENTS; ++num_selected_cli)
     {
-        FD_SET(curr_cli->c_fd, &set->readfds); /* Add that client's fd to the set. */
+        FD_SET(curr_cli->c_fd, &this_readfds); /* Add that client's fd to the set. */
         set->max_fd = (curr_cli->c_fd > set->max_fd) ? curr_cli->c_fd : set->max_fd; /* Set new max_fd if necessary. */
         
         curr_cli = curr_cli->next; /* Go to next client in list. */
     }
     
-    int test = errno;
-    if (select(set->max_fd, &set->readfds, NULL, NULL, NULL) == -1)
+    if (select(set->max_fd + 1, &this_readfds, NULL, NULL, NULL) == -1)
     {
         switch (errno)
         {
             case EINTR:
             {
-                fatal_errno(__FILE__, __func__, __LINE__, errno);
                 // running set to 0 with signal handler.
                 return;
             }
@@ -226,7 +226,7 @@ void connect_to(struct server_settings *set)
         }
     }
     
-    if (FD_ISSET(set->server_fd, &set->readfds))
+    if (FD_ISSET(set->server_fd, &this_readfds))
     {
         if (!errno) do_accept(set, &s_packet);
     } else
@@ -234,9 +234,9 @@ void connect_to(struct server_settings *set)
         curr_cli = set->first_conn_client;
         for (int num_selected_cli = 0; curr_cli != NULL && num_selected_cli < MAX_CLIENTS; ++num_selected_cli)
         {
-            if (FD_ISSET(curr_cli->c_fd, &set->readfds))
+            if (FD_ISSET(curr_cli->c_fd, &this_readfds))
             {
-                if (!errno) do_messaging(set, NULL, &s_packet, &recv_packet);
+                if (!errno) do_messaging(set, curr_cli, &s_packet, &recv_packet);
             }
             curr_cli = curr_cli->next; /* Go to next client in list. */
         }
@@ -256,35 +256,32 @@ void do_accept(struct server_settings *set, struct packet *s_packet)
     
     s_packet->seq_num = MAX_SEQ;
     sockaddr_in_size = sizeof(struct sockaddr_in);
-    do /* This loop will hang until a SYN packet is received. It is essentially accept. */
+    if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0, /* Get client sockaddr_in here. */
+                  (struct sockaddr *) new_client->addr, &sockaddr_in_size)) == -1)
     {
-        if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0, /* Get client sockaddr_in here. */
-                      (struct sockaddr *) new_client->addr, &sockaddr_in_size)) == -1)
+        switch (errno)
         {
-            switch (errno)
+            case EINTR:
             {
-                case EINTR:
-                {
-                    // running set to 0 with signal handler.
-                    return;
-                }
-                default:
-                {
-                    fatal_errno(__FILE__, __func__, __LINE__, errno);
-                    running = 0;
-                    return;
-                }
+                // running set to 0 with signal handler.
+                return;
+            }
+            default:
+            {
+                fatal_errno(__FILE__, __func__, __LINE__, errno);
+                running = 0;
+                return;
             }
         }
-    } while (*buffer != FLAG_SYN);
+    }
     
     printf("Client connected from: %s\n\n",
            inet_ntoa(new_client->addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
-    new_client->c_fd = setup_socket(set->server_ip, 0); /* Create a new socket with an ephemeral port. */
+    new_client->c_fd = setup_socket(set->server_ip, 5100); /* Create a new socket with an ephemeral port. */
     
     create_pack(s_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
-    send_resp(set, NULL, s_packet);
+    send_resp(set, new_client, s_packet);
 }
 
 void do_messaging(struct server_settings *set, struct conn_client *client,
@@ -455,6 +452,16 @@ void close_server(struct server_settings *set)
     if (set->server_fd != 0)
     {
         close(set->server_fd);
+    }
+    if (set->first_conn_client != NULL)
+    {
+        for (struct conn_client *curr_cli = set->first_conn_client; curr_cli != NULL; curr_cli = curr_cli->next)
+        {
+            if (curr_cli->c_fd != 0)
+            {
+                close(curr_cli->c_fd);
+            }
+        }
     }
     free_mem_manager(set->mm);
 }
