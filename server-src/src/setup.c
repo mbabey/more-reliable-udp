@@ -61,7 +61,7 @@ void set_server_defaults(struct server_settings *set)
     if ((set->timeout = (struct timeval *) s_calloc(1, sizeof(struct timeval), __FILE__, __func__, __LINE__)) == NULL)
     {
         free_memory_manager(set->mm);
-        exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
         
     }
     set->mm->mm_add(set->mm, set->timeout);

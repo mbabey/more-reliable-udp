@@ -26,8 +26,6 @@ void run(int argc, char *argv[], struct server_settings *set);
  * Free allocated memory. Close open sockets.
  * </p>
  * @param set - the server settings
- * @param send_packet - the send packet
- * @param recv_packet - the receive packet
  */
 void close_server(struct server_settings *set);
 

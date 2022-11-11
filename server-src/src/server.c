@@ -135,7 +135,8 @@ void run(int argc, char *argv[], struct server_settings *set)
     
     open_server(set);
     
-    if (!errno) await_connect(set);
+    if (!errno)
+    { await_connect(set); }
     
     /* return to main. */
 }
@@ -192,7 +193,8 @@ void connect_to(struct server_settings *set)
     
     if (FD_ISSET(set->server_fd, &readfds))
     {
-        if (!errno) do_accept(set);
+        if (!errno)
+        { do_accept(set); }
     } else
     {
         curr_cli = set->first_conn_client;
@@ -200,7 +202,8 @@ void connect_to(struct server_settings *set)
         {
             if (FD_ISSET(curr_cli->c_fd, &readfds))
             {
-                if (!errno) do_message(set, curr_cli);
+                if (!errno)
+                { do_message(set, curr_cli); }
             }
             curr_cli = curr_cli->next; /* Go to next client in list. */
         }
@@ -259,7 +262,8 @@ void do_accept(struct server_settings *set)
                ntohs(new_client->addr->sin_port));
         
         create_pack(new_client->s_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
-        if (!errno) send_resp(set, new_client);
+        if (!errno)
+        { send_resp(set, new_client); }
     }
 }
 
@@ -292,7 +296,8 @@ void do_message(struct server_settings *set, struct conn_client *client)
     } else
     {
         decode_message(set, client->r_packet, buffer);
-        if (!errno) process_message(set, client); /* Create/send appropriate resp */
+        if (!errno)
+        { process_message(set, client); /* Create/send appropriate resp */ }
     }
 }
 
@@ -312,7 +317,8 @@ void decode_message(struct server_settings *set, struct packet *r_packet, const 
 
 void process_message(struct server_settings *set, struct conn_client *client)
 {
-    if ((client->r_packet->flags == FLAG_PSH) && (client->r_packet->seq_num == (uint8_t) (client->s_packet->seq_num + 1))) // cracked cast
+    if ((client->r_packet->flags == FLAG_PSH) &&
+        (client->r_packet->seq_num == (uint8_t) (client->s_packet->seq_num + 1))) // cracked cast
     {
         process_payload(set, client->r_packet);
         create_pack(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
@@ -374,8 +380,8 @@ void send_resp(struct server_settings *set, struct conn_client *client)
     }
     
     printf("Sending to: %s:%u\n\n",
-           inet_ntoa(client->addr->sin_addr),
-           ntohs(client->addr->sin_port)); // NOLINT(concurrency-mt-unsafe) : no threads here
+           inet_ntoa(client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+           ntohs(client->addr->sin_port));
     
     set->mm->mm_free(set->mm, data_buffer);
     
