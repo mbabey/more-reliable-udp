@@ -241,23 +241,19 @@ void connect_to(struct server_settings *set)
             curr_cli = curr_cli->next; /* Go to next client in list. */
         }
     }
-    
 }
 
 void do_accept(struct server_settings *set, struct packet *s_packet)
 {
-    printf("Awaiting connections.\n\n");
-    
-    socklen_t sockaddr_in_size;
-    uint8_t   buffer[BUF_LEN];
-    
-    /* Initialize storage for information about the new client. */
-    struct conn_client *new_client = create_conn_client(set);
+    struct sockaddr_in from_addr;
+    struct conn_client *new_client;
+    socklen_t          sockaddr_in_size;
+    uint8_t            buffer[BUF_LEN];
     
     s_packet->seq_num = MAX_SEQ;
     sockaddr_in_size = sizeof(struct sockaddr_in);
     if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0, /* Get client sockaddr_in here. */
-                  (struct sockaddr *) new_client->addr, &sockaddr_in_size)) == -1)
+                  (struct sockaddr *) &from_addr, &sockaddr_in_size)) == -1)
     {
         switch (errno)
         {
@@ -275,13 +271,31 @@ void do_accept(struct server_settings *set, struct packet *s_packet)
         }
     }
     
-    printf("Client connected from: %s\n\n",
-           inet_ntoa(new_client->addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
-    
-    new_client->c_fd = setup_socket(set->server_ip, 5100); /* Create a new socket with an ephemeral port. */
-    
-    create_pack(s_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
-    send_resp(set, new_client, s_packet);
+    if (*buffer == FLAG_SYN) /* If the message received was not a SYN packet. */
+    {
+        /* Initialize storage for information about the new client. */
+        if ((new_client = create_conn_client(set)) == NULL)
+        {
+            running = 0;
+            return; // errno set
+        }
+        
+        *new_client->addr = from_addr; /* Copy the sender's information into the client struct. */
+        
+        /* Create a new socket with an ephemeral port. */
+        if ((new_client->c_fd = setup_socket(set->server_ip, 0)) == -1)
+        {
+            running = 0;
+            return; // errno set
+        }
+        
+        printf("Client connected from: %s:%u\n\n",
+               inet_ntoa(new_client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+               ntohs(new_client->addr->sin_port));
+        
+        create_pack(s_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
+        if (!errno) send_resp(set, new_client, s_packet);
+    }
 }
 
 void do_messaging(struct server_settings *set, struct conn_client *client,
@@ -360,14 +374,10 @@ void decode_message(struct server_settings *set, struct packet *recv_packet, con
 void process_message(struct server_settings *set, struct conn_client *client,
                      struct packet *s_packet, struct packet *recv_packet)
 {
-    if (recv_packet->flags == FLAG_ACK && !set->connected)
-    {
-        set->connected = true; // TODO: this is busted for multiple clients (maybe?). Each thread will need it's own connected (maybe?)
-    }
     // FIN/ACK || end of 3-way do_synchronize || additional connect attempt
-    if ((s_packet->flags == (FLAG_FIN | FLAG_ACK) ||
-         recv_packet->flags == FLAG_ACK ||
-         recv_packet->flags == FLAG_SYN) && set->connected)
+    if (s_packet->flags == (FLAG_FIN | FLAG_ACK) ||
+        recv_packet->flags == FLAG_ACK ||
+        recv_packet->flags == FLAG_SYN)
     {
         return;
     }
@@ -413,11 +423,10 @@ void send_resp(struct server_settings *set, struct conn_client *client, struct p
     packet_size = sizeof(s_packet->flags) + sizeof(s_packet->seq_num)
                   + sizeof(s_packet->length) + s_packet->length;
     
-    
     printf("Sending packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
            check_flags(s_packet->flags), s_packet->seq_num);
     sockaddr_in_size = sizeof(struct sockaddr_in);
-    if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, sockaddr_in_size) ==
+    if (sendto(client->c_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, sockaddr_in_size) ==
         -1)
     {
         perror("Message transmission to client failed: ");
@@ -429,7 +438,7 @@ void send_resp(struct server_settings *set, struct conn_client *client, struct p
         *data_buffer = FLAG_FIN;
         printf("Sending packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
                check_flags(*data_buffer), s_packet->seq_num);
-        if (sendto(set->server_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, sockaddr_in_size) ==
+        if (sendto(client->c_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, sockaddr_in_size) ==
             -1)
         {
             perror("Message transmission to client failed: ");
@@ -437,8 +446,9 @@ void send_resp(struct server_settings *set, struct conn_client *client, struct p
         }
     }
     
-    printf("Sending to: %s\n\n",
-           inet_ntoa(client->addr->sin_addr)); // NOLINT(concurrency-mt-unsafe) : no threads here
+    printf("Sending to: %s:%u\n\n",
+           inet_ntoa(client->addr->sin_addr),
+           ntohs(client->addr->sin_port)); // NOLINT(concurrency-mt-unsafe) : no threads here
     
     set->mm->mm_free(set->mm, data_buffer);
     

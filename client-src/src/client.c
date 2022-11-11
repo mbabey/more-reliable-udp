@@ -352,6 +352,7 @@ void send_msg(struct client_settings *set, struct packet *s_packet)
 void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t recv_flags)
 {
     socklen_t sockaddr_in_size;
+    struct sockaddr_in from_addr;
     uint8_t   recv_buffer[BUF_LEN];
     bool      correct_packet;
     int       num_timeouts;
@@ -375,7 +376,8 @@ void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t rec
 //        }
         
         memset(recv_buffer, 0, BUF_LEN); /* Clear our reception buffer. */
-    
+        memset(&from_addr, 0, sizeof(from_addr));
+        
         /* set->server_addr will be overwritten when a message is received on the socket set->server_fd */
         if (recvfrom(set->server_fd, recv_buffer, BUF_LEN, 0,
                      (struct sockaddr *) set->server_addr, &sockaddr_in_size) == -1)
@@ -408,7 +410,7 @@ void await_msg(struct client_settings *set, struct packet *s_packet, uint8_t rec
             num_timeouts = 0; /* Reset num_timeouts: a packet was received. */
             
             /* Check the seq num and flags in the recv_buffer. If either is invalid, we have the wrong packet. */
-            correct_packet = *(recv_buffer + 1) == s_packet->flags && *recv_buffer == recv_flags;
+            correct_packet = *recv_buffer == recv_flags && *(recv_buffer + 1) == s_packet->seq_num;
             
             if (!correct_packet)
             {

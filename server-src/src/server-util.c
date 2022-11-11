@@ -15,14 +15,12 @@ struct conn_client *create_conn_client(struct server_settings *set)
     struct conn_client *new_client;
     if ((new_client = s_calloc(1, sizeof(struct conn_client), __FILE__, __func__, __LINE__)) == NULL)
     {
-        running = 0;
         return NULL;
     }
     
     if ((new_client->addr = s_calloc(1, sizeof(struct sockaddr_in), __FILE__, __func__, __LINE__)) == NULL)
     {
         free(new_client);
-        running = 0;
         return NULL;
     }
     
