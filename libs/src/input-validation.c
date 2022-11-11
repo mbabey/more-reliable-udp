@@ -10,24 +10,26 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void check_ip(char *ip, uint8_t base)
+char *check_ip(char *ip, uint8_t base)
 {
     const char *msg     = NULL;
     char       *ip_cpy  = NULL;
-    char       *end;
-    char       *tok;
+    char       *end     = NULL;
+    char       *tok     = NULL;
     char       delim[2] = ".";
     int        tok_count;
     long       num;
-    errno               = 0;
     
     set_string(&ip_cpy, ip);
-    if (errno == ENOTRECOVERABLE)
+    if (errno == ENOMEM)
     {
-        return;
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return NULL;
     }
     
-    tok       = strtok(ip_cpy, delim); // NOLINT(concurrency-mt-unsafe) : No threads here
+    /* Tokenize the IP address by byte. */
+    tok = strtok(ip_cpy, delim); // NOLINT(concurrency-mt-unsafe) : No threads here
+    
     tok_count = 0;
     while (tok != NULL)
     {
@@ -50,6 +52,8 @@ void check_ip(char *ip, uint8_t base)
         if (msg)
         {
             advise_usage(msg);
+            free(ip_cpy);
+            return NULL;
         }
         
         tok = strtok(NULL, delim); // NOLINT(concurrency-mt-unsafe) : No threads here
@@ -58,8 +62,12 @@ void check_ip(char *ip, uint8_t base)
     {
         msg = "IP address must be in form XXX.XXX.XXX.XXX";
         advise_usage(msg);
+        free(ip_cpy);
+        return NULL;
     }
     free(ip_cpy);
+    
+    return ip;
 }
 
 in_port_t parse_port(const char *buffer, uint8_t base)
@@ -68,7 +76,6 @@ in_port_t parse_port(const char *buffer, uint8_t base)
     char       *end;
     long       sl;
     in_port_t  port;
-    errno           = 0;
     
     sl = strtol(buffer, &end, base);
     

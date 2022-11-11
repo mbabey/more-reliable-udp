@@ -18,7 +18,7 @@
  * @param ip - char *: the string containing the IP address
  * @param base - int: base in which to interpret the IP address
  */
-void check_ip(char *ip, uint8_t base);
+char * check_ip(char *ip, uint8_t base);
 
 /**
  * parse_port

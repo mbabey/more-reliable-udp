@@ -119,14 +119,12 @@ void set_string(char **str, const char *new_str)
     
     if (!*str) // Double negative: true if the string is NULL
     {
-        errno = 0;
         if ((*str = (char *) malloc(buf)) == NULL)
         {
             return;
         }
     } else
     {
-        errno = 0;
         if ((*str = (char *) realloc(*str, buf)) == NULL)
         {
             return;
@@ -156,11 +154,11 @@ const char *check_flags(uint8_t flags)
         {
             return "FIN";
         }
-        case (FLAG_SYN | FLAG_ACK): // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+        case (FLAG_SYN | FLAG_ACK):
         {
             return "SYN/ACK";
         }
-        case (FLAG_FIN | FLAG_ACK): // NOLINT(hicpp-signed-bitwise) : highest order bit unused
+        case (FLAG_FIN | FLAG_ACK):
         {
             return "FIN/ACK";
         }

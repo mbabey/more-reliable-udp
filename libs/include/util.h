@@ -77,7 +77,7 @@ void deserialize_packet(struct packet *packet, const uint8_t *data_buffer);
 /**
  * serialize_packet
  * <p>
- * Load the  packet struct fields into the bytes of a buffer.
+ * Load the packet struct fields into the bytes of a buffer.
  * </p>
  * @param packet - the packet to serialize
  * @return the buffer storing the packet info

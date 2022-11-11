@@ -16,22 +16,21 @@
  * <li>server_ip: the server's ip address</li>
  * <li>server_port: the server's port number</li>
  * <li>server_fd: file descriptor of the socket connected to the server</li>
- * <li>is_file: if the client wishes to read a file to standard input</li>
+ * <li>server_addr: the address of the server connection</li>
+ * <li>timeout: timeval used to determine time client will await a message before acting</li>
+ * <li>mm: a memory manager for the client</li>
  * </ul>
  * </p>
  */
 struct client_settings
 {
-    char      *client_ip;
     char      *server_ip;
-    int       server_fd;
     in_port_t server_port;
+    int       server_fd;
     
-    struct sockaddr_in *client_addr;
-    struct sockaddr_in *server_addr;
-    
+    struct sockaddr_in    *server_addr;
     struct timeval        *timeout;
-    struct memory_manager *mem_manager;
+    struct memory_manager *mm;
 };
 
 /**

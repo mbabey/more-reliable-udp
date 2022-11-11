@@ -28,8 +28,8 @@ static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-cons
  * <li>server_ip: the server's ip address</li>
  * <li>server_port: the server's port number</li>
  * <li>server_fd: file descriptor of the socket listening for connections</li>
- * <li>timeout: timeval used to determine time server will await a message before acting</li>
  * <li>first_conn_client: Head of linked list holding communication information of connected clients</li>
+ * <li>timeout: timeval used to determine time server will await a message before acting</li>
  * <li>mm: a memory manager for the server</li>
  * </ul>
  * </p>
@@ -40,8 +40,8 @@ struct server_settings
     in_port_t server_port;
     int       server_fd;
     
+    struct conn_client    *first_conn_client;
     struct timeval        *timeout;
-    struct conn_client    *first_conn_client; /*  */
     struct memory_manager *mm;
 };
 

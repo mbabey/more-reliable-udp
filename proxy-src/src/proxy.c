@@ -294,7 +294,7 @@ _Noreturn void close_proxy(struct proxy_settings *set, int exit_code)
     {
         close(set->proxy_fd);
     }
-    free_mem_manager(set->mem_manager);
+    free_memory_manager(set->mem_manager);
     exit(exit_code); // NOLINT(concurrency-mt-unsafe) : no threads here
 }
 

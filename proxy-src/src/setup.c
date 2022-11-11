@@ -32,7 +32,7 @@
 #define DEFAULT_HOLD_PERCENT 15
 
 /**
- * set_defaults
+ * set_server_defaults
  * <p>
  * Zero the memory in proxy_settings. Set the default port, the default output, and the default timeout.
  * </p>
@@ -66,7 +66,7 @@ void set_defaults(struct proxy_settings *set)
     memset(set, 0, sizeof(struct proxy_settings));
     set->proxy_port  = DEFAULT_PORT;
     set->output_port = DEFAULT_PORT;
-    set->mem_manager = init_mem_manager();
+    set->mem_manager = init_memory_manager();
 }
 
 void read_args(int argc, char *argv[], struct proxy_settings *set)
@@ -87,7 +87,7 @@ void read_args(int argc, char *argv[], struct proxy_settings *set)
                 check_ip(optarg, base);
                 if (errno == ENOTRECOVERABLE)
                 {
-                    free_mem_manager(set->mem_manager);
+                    free_memory_manager(set->mem_manager);
                     exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
                 }
                 set->proxy_ip = optarg;
@@ -98,7 +98,7 @@ void read_args(int argc, char *argv[], struct proxy_settings *set)
                 check_ip(optarg, base);
                 if (errno == ENOTRECOVERABLE)
                 {
-                    free_mem_manager(set->mem_manager);
+                    free_memory_manager(set->mem_manager);
                     exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
                 }
                 set->output_ip = optarg;
@@ -109,7 +109,7 @@ void read_args(int argc, char *argv[], struct proxy_settings *set)
                 set->proxy_port = parse_port(optarg, base);
                 if (errno == ENOTRECOVERABLE)
                 {
-                    free_mem_manager(set->mem_manager);
+                    free_memory_manager(set->mem_manager);
                     exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
                 }
                 break;
@@ -119,7 +119,7 @@ void read_args(int argc, char *argv[], struct proxy_settings *set)
                 set->output_port = parse_port(optarg, base);
                 if (errno == ENOTRECOVERABLE)
                 {
-                    free_mem_manager(set->mem_manager);
+                    free_memory_manager(set->mem_manager);
                     exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
                 }
                 break;
@@ -139,7 +139,7 @@ void read_args(int argc, char *argv[], struct proxy_settings *set)
                 advise_usage(USAGE);
                 if (errno == ENOTRECOVERABLE)
                 {
-                    free_mem_manager(set->mem_manager);
+                    free_memory_manager(set->mem_manager);
                     exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
                 }
             }
@@ -161,7 +161,7 @@ void check_settings(struct proxy_settings *set, int8_t hold_chance, int8_t drop_
             advise_usage(USAGE);
             if (errno == ENOTRECOVERABLE)
             {
-                free_mem_manager(set->mem_manager);
+                free_memory_manager(set->mem_manager);
                 exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
             }
         }
@@ -171,7 +171,7 @@ void check_settings(struct proxy_settings *set, int8_t hold_chance, int8_t drop_
         advise_usage(USAGE);
         if (errno == ENOTRECOVERABLE)
         {
-            free_mem_manager(set->mem_manager);
+            free_memory_manager(set->mem_manager);
             exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
         }
     }
@@ -189,7 +189,7 @@ void check_settings(struct proxy_settings *set, int8_t hold_chance, int8_t drop_
         advise_usage(USAGE);
         if (errno == ENOTRECOVERABLE)
         {
-            free_mem_manager(set->mem_manager);
+            free_memory_manager(set->mem_manager);
             exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
         }
     }

@@ -15,7 +15,7 @@
 /**
  * The number of connections which may be queued at once. NOTE: server does not currently time out.
  */
-#define MAX_TIMEOUTS_SERVER 3
+//#define MAX_TIMEOUTS_SERVER 3
 
 /**
  * open_server
@@ -210,7 +210,6 @@ void connect_to(struct server_settings *set)
 void do_accept(struct server_settings *set)
 {
     struct sockaddr_in from_addr;
-    struct packet      packet;
     socklen_t          size_addr_in;
     uint8_t            buffer[BUF_LEN];
     
@@ -401,7 +400,7 @@ void close_server(struct server_settings *set)
             }
         }
     }
-    free_mem_manager(set->mm);
+    free_memory_manager(set->mm);
 }
 
 static void set_signal_handling(struct sigaction *sa)

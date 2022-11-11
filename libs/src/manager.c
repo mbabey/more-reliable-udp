@@ -51,6 +51,16 @@ int mm_free_all(struct memory_manager *mem_manager);
  */
 int mm_free_recurse(struct memory_address *ma);
 
+/**
+ * alloc_err
+ * <p>
+ * Print the file, function, and line where an error of err_code occurred.
+ * </p>
+ * @param file - file in which error occurred
+ * @param func - function in which error occurred
+ * @param line - line on which error occurred
+ * @param err_code - the error code of the error which occurred
+ */
 void alloc_err(const char *file, const char *func, size_t line,
                int err_code); // NOLINT(bugprone-easily-swappable-parameters)
 
@@ -60,13 +70,14 @@ struct memory_address
     struct memory_address *next;
 };
 
-struct memory_manager *init_mem_manager(void)
+struct memory_manager *init_memory_manager(void)
 {
     struct memory_manager *mm;
     
-    if ((mm = (struct memory_manager *) malloc(sizeof(struct memory_manager))) == NULL)
+    if ((mm = (struct memory_manager *) s_malloc(sizeof(struct memory_manager),
+            __FILE__, __func__, __LINE__)) == NULL)
     {
-        return mm;
+        return NULL;
     }
     
     mm->head = NULL;
@@ -78,7 +89,7 @@ struct memory_manager *init_mem_manager(void)
     return mm;
 }
 
-int free_mem_manager(struct memory_manager *mem_manager)
+int free_memory_manager(struct memory_manager *mem_manager)
 {
     if (mem_manager == NULL)
     {
@@ -97,7 +108,8 @@ void *mm_add(struct memory_manager *mem_manager, void *mem)
     struct memory_address *ma     = NULL;
     struct memory_address *ma_cur = NULL;
     
-    if ((ma = (struct memory_address *) malloc(sizeof(struct memory_address))) == NULL)
+    if ((ma = (struct memory_address *) s_malloc(sizeof(struct memory_address),
+            __FILE__, __func__, __LINE__)) == NULL)
     {
         return NULL;
     }

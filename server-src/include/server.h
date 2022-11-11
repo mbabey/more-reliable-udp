@@ -12,7 +12,7 @@
 /**
  * run.
  * <p>
- * Set up the server based on command line arguments, then open it.
+ * Set up the server based on command line arguments, then open for client connections.
  * </p>
  * @param argc - the number of command line arguments
  * @param argv - the command line arguments
@@ -23,7 +23,7 @@ void run(int argc, char *argv[], struct server_settings *set);
 /**
  * close_server
  * <p>
- * Free allocated memory. Close the server socket.
+ * Free allocated memory. Close open sockets.
  * </p>
  * @param set - the server settings
  * @param send_packet - the send packet
