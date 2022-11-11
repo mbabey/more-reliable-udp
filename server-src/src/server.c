@@ -147,7 +147,7 @@ void open_server(struct server_settings *set)
     {
         return;
     }
-    printf("\nServer running on %s:%d\n\n", set->server_ip, set->server_port);
+    printf("\nServer running on %s:%d\n", set->server_ip, set->server_port);
 }
 
 void await_connect(struct server_settings *set)
@@ -261,7 +261,7 @@ void do_accept(struct server_settings *set)
             return; // errno set
         }
         
-        printf("Client connected from: %s:%u\n\n",
+        printf("\nClient connected from: %s:%u\n",
                inet_ntoa(new_client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
                ntohs(new_client->addr->sin_port));
         
@@ -315,7 +315,7 @@ void decode_message(struct server_settings *set, struct packet *r_packet, const 
     }
     set->mm->mm_add(set->mm, r_packet->payload);
     
-    printf("Received packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
+    printf("\nReceived packet:\n\tFlags: %s\n\tSequence Number: %d\n",
            check_flags(r_packet->flags), r_packet->seq_num);
 }
 
@@ -339,7 +339,7 @@ void process_payload(struct server_settings *set, struct packet *r_packet)
     printf("\n");
     if (write(STDOUT_FILENO, r_packet->payload, r_packet->length) == -1)
     {
-        printf("Could not write payload to output.\n");
+        printf("Could not write payload to output.");
     }
     printf("\n");
     set->mm->mm_free(set->mm, r_packet->payload);
@@ -362,28 +362,28 @@ void send_resp(struct server_settings *set, struct conn_client *client)
     packet_size = sizeof(client->s_packet->flags) + sizeof(client->s_packet->seq_num)
                   + sizeof(client->s_packet->length) + client->s_packet->length;
     
-    printf("Sending packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
+    printf("\nSending packet:\n\tFlags: %s\n\tSequence Number: %d\n",
            check_flags(client->s_packet->flags), client->s_packet->seq_num);
     size_addr_in = sizeof(struct sockaddr_in);
     if (sendto(client->c_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, size_addr_in) == -1)
     {
-        perror("Message transmission to client failed: ");
+        perror("\nMessage transmission to client failed: \n");
         return;
     }
     
     if (client->s_packet->flags == (FLAG_FIN | FLAG_ACK))
     {
         *data_buffer = FLAG_FIN;
-        printf("Sending packet:\n\tFlags: %s\n\tSequence Number: %d\n\n",
+        printf("\nSending packet:\n\tFlags: %s\n\tSequence Number: %d\n",
                check_flags(*data_buffer), client->s_packet->seq_num);
         if (sendto(client->c_fd, data_buffer, packet_size, 0, (struct sockaddr *) client->addr, size_addr_in) == -1)
         {
-            perror("Message transmission to client failed: ");
+            perror("\nMessage transmission to client failed: \n");
             return;
         }
     }
     
-    printf("Sending to: %s:%u\n\n",
+    printf("\nSending to: %s:%u\n",
            inet_ntoa(client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
            ntohs(client->addr->sin_port));
     

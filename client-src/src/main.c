@@ -1,5 +1,6 @@
 #include "../include/client.h"
 #include <stdlib.h>
+#include <printf.h>
 
 /**
  * main
@@ -14,8 +15,8 @@ int main(int argc, char *argv[])
 {
     struct client_settings settings;
     run_client(argc, argv, &settings);
-    
+
     close_client(&settings);
-    
+
     return EXIT_SUCCESS;
 }
