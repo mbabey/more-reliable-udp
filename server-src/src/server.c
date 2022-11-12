@@ -47,13 +47,24 @@ void connect_to(struct server_settings *set);
 /**
  * do_accept
  * <p>
- * Receive a message. If it is a SYN, store the sender's information and create a new socket with which to
- * exchange messages with that sender. Send a SYN/ACK back to the sender on that socket.
+ * Receive a message. If it is a SYN, connect the new client. Send a SYN/ACK back to the sender on that socket.
  * </p>
  * @param set - the server settings
  * @param s_packet - the packet struct to send
  */
 void do_accept(struct server_settings *set);
+
+/**
+ * connect_new_client
+ * <p>
+ * Connect a new client. Store the client's information and create a new socket with which to
+ * exchange messages with that client. Increment the number of connected clients.
+ * </p>
+ * @param set - the client settings
+ * @param from_addr - the address from which the message was sent
+ * @return - a pointer to the newly connected client.
+ */
+struct conn_client *connect_new_client(struct server_settings *set, struct sockaddr_in *from_addr);
 
 /**
  * do_message.
@@ -192,12 +203,14 @@ void connect_to(struct server_settings *set)
         }
     }
     
-    if (FD_ISSET(set->server_fd, &readfds))
+    /* If there are fewer than MAX_CLIENTS clients connected, allow additional connections. */
+    if (set->num_conn_client < MAX_CLIENTS && FD_ISSET(set->server_fd, &readfds))
     {
         if (!errno)
         { do_accept(set); }
     } else
     {
+        /* Receive messages from each client. */
         curr_cli = set->first_conn_client;
         for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
         {
@@ -212,6 +225,17 @@ void connect_to(struct server_settings *set)
         }
     }
     /* for i < MAX_CLIENTS, pthread_join(cli_threads[i], NULL) */
+    
+    // Comm with game to get game state update
+    
+    if (set->num_conn_client == MAX_CLIENTS)
+    {
+        curr_cli = set->first_conn_client;
+        for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
+        {
+        
+        }
+    }
 }
 
 void do_accept(struct server_settings *set)
@@ -241,21 +265,10 @@ void do_accept(struct server_settings *set)
         }
     }
     
-    if (*buffer == FLAG_SYN) /* If the message received was a SYN packet. */
+    if (set->num_conn_client < MAX_CLIENTS && *buffer == FLAG_SYN) /* If the message received was a SYN packet. */
     {
         struct conn_client *new_client;
-        
-        /* Initialize storage for information about the new client. */
-        if ((new_client = create_conn_client(set)) == NULL) // TODO(maxwell): the client is never removed from the linked list.
-        {
-            running = 0;
-            return; // errno set
-        }
-        
-        *new_client->addr = from_addr; /* Copy the sender's information into the client struct. */
-        
-        /* Create a new socket with an ephemeral port. */
-        if ((new_client->c_fd = setup_socket(set->server_ip, 0)) == -1)
+        if ((new_client = connect_new_client(set, &from_addr)) == NULL)
         {
             running = 0;
             return; // errno set
@@ -270,6 +283,30 @@ void do_accept(struct server_settings *set)
         { send_resp(set, new_client); }
     }
 }
+
+struct conn_client *connect_new_client(struct server_settings *set, struct sockaddr_in *from_addr)
+{
+    struct conn_client *new_client;
+    
+    /* Initialize storage for information about the new client. */
+    if ((new_client = create_conn_client(set)) ==
+        NULL) // TODO(maxwell): the client is never removed from the linked list.
+    {
+        return NULL; // errno set
+    }
+    *new_client->addr = *from_addr; /* Copy the sender's information into the client struct. */
+    
+    /* Create a new socket with an ephemeral port. */
+    if ((new_client->c_fd = setup_socket(set->server_ip, 0)) == -1)
+    {
+        return NULL; // errno set
+    }
+    
+    ++set->num_conn_client; /* Increment the number of connected clients. */
+    
+    return new_client;
+}
+
 
 void do_message(struct server_settings *set, struct conn_client *client)
 {
