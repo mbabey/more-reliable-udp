@@ -61,7 +61,7 @@ void get_output_address(struct proxy_settings *set);
 void await_connect(struct proxy_settings *set);
 
 /**
- * do_message.
+ * do_await.
  * <p>
  * Await a message from the connected client. If no message is received and a timeout occurs,
  * resend the last-sent packet. If a timeout occurs too many times, drop the connection.

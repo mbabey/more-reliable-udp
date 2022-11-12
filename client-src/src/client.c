@@ -46,7 +46,7 @@ void open_client_socket(struct client_settings *set);
 void do_connect(struct client_settings *set);
 
 /**
- * do_message
+ * do_await
  * <p>
  * Main messaging loop. Read a message from the client. Send the message to the server. Await a response from the server.
  * If a SIGINT occurs, the loop will exit.
