@@ -243,6 +243,11 @@ void do_messaging(struct client_settings *set)
         create_packet(set->s_packet, FLAG_ACK, set->r_packet->seq_num, 0, NULL);
         send_msg(set);
         
+        // TODO: update game struct with packet info
+        set->game->updateGame(array, turn, cursor);
+        
+        set->game->displayBoardWithCursor(set->game);
+        
         if (set->turn)
         {
             bool btn = set->game->take_input(set->game);

@@ -101,16 +101,6 @@ int decode_message(struct server_settings *set, struct packet *r_packet, const u
 bool process_message(struct server_settings *set, struct conn_client *client, const uint8_t *data_buffer);
 
 /**
- * print_payload
- * <p>
- * Write the information in the payload to the output specified in the server settings.
- * </p>
- * @param set - the server settings
- * @param r_packet - the packet struct to receive
- */
-void print_payload(struct server_settings *set, struct packet *r_packet);
-
-/**
  * send_pack
  * <p>
  * Send the send packet to the client as a response.
@@ -374,13 +364,16 @@ bool process_message(struct server_settings *set, struct conn_client *client, co
         create_pack(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
         send_pack(set, client);
     
-        if (client->r_packet->flags & FLAG_TRN && !set->game->validate(set->game))
+        if (client->r_packet->flags & FLAG_TRN && !set->game->validateMove(set->game))
         {
             return false;
         }
         
-        // put the payload into Game struct
+        // TODO: put the payload into Game struct
         set->game->updateBoard(set->game);
+    
+        set->mm->mm_free(set->mm, client->r_packet->payload);
+        client->r_packet->payload = NULL;
         
     } else if (client->r_packet->flags == FLAG_FIN)
     {
@@ -389,23 +382,6 @@ bool process_message(struct server_settings *set, struct conn_client *client, co
     }
     
     return false;
-}
-
-void print_payload(struct server_settings *set, struct packet *r_packet)
-{
-//    printf("\n");
-//    if (write(STDOUT_FILENO, r_packet->payload, r_packet->length) == -1)
-//    {
-//        printf("Could not write payload to output.");
-//    }
-//    printf("\n");
-
-    // set the cursor in game
-    set->game->cursor = r_packet->payload;
-    
-    set->game->displayBoardWithCursor(set->game);
-    set->mm->mm_free(set->mm, r_packet->payload);
-    r_packet->payload = NULL;
 }
 
 int decode_message(struct server_settings *set, struct packet *r_packet, const uint8_t *data_buffer)
