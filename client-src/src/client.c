@@ -245,11 +245,12 @@ void do_messaging(struct client_settings *set)
         
         if (set->turn)
         {
-            input = get_input(set); // TODO(m / p): get_input will turn the light on. After input taken, turn light off
+            bool btn = set->game->take_input(set->game);
             
             /* Send input to server. */
-            create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
-                          sizeof(input), &input);
+            uint8_t flags = (btn) ? FLAG_PSH | FLAG_TRN : FLAG_PSH;
+            create_packet(set->s_packet, flags, (uint8_t) (set->r_packet->seq_num + 1),
+                          sizeof(set->game->cursor), &set->game->cursor);
             send_msg(set);
             
             if (!errno)
@@ -482,12 +483,16 @@ void process_response(struct client_settings *set, const uint8_t *recv_buffer)
     if (set->r_packet->flags & FLAG_TRN) /* Indicates that it is this client's turn. */
     {
         set->turn = true;
-        printf("\nYour turn!\n");
+//        printf("\nYour turn!\n");
+        //set->game->turn =
     }
     
     if (set->r_packet->flags & FLAG_PSH) /* Indicates that the packet contains data which must be displayed. */
     {
-        printf("\nUI updated.\n"); // TODO(maxwell): show board here
+//        printf("\nUI updated.\n"); // TODO(maxwell): show board here
+        // set->game->board = r_packet->payload[0 --> 7]
+        // set->game->cursor = r-Packet->payload[8]
+        // set->game->displayBoardWithCursor(set->game)
     }
     
     set->mm->mm_free(set->mm, set->r_packet->payload);

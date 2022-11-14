@@ -40,7 +40,9 @@ struct server_settings
     in_port_t server_port;
     int       server_fd;
     uint8_t   num_conn_client;
-    uint8_t   turn_counter; // TODO(M/P): this should belong to the game.
+    uint8_t   player_turn;
+    
+    struct Game *game;
     
     struct conn_client    *first_conn_client;
     struct timeval        *timeout;

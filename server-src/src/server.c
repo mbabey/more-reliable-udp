@@ -234,10 +234,10 @@ void connect_to(struct server_settings *set)
         for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
         {
             /* Decide which client's turn it is. That client will be sent a PSH/TRN */
-            uint8_t flags = (set->turn_counter++ % MAX_CLIENTS == 0) ? (FLAG_PSH | FLAG_TRN) : FLAG_PSH;
+            uint8_t flags = (cli_num == set->game->turn % MAX_CLIENTS) ? (FLAG_PSH | FLAG_TRN) : FLAG_PSH;
             create_pack(curr_cli->s_packet, flags, (uint8_t) (curr_cli->r_packet->seq_num + 1), 0, NULL);
             send_pack(set, curr_cli);
-            // must wait for ACK w correct seq num
+            do_await(set, curr_cli);
         }
     }
 }
@@ -342,7 +342,7 @@ void do_await(struct server_settings *set, struct conn_client *client)
             }
         } else
         {
-            if ((resend = process_message(set, client, buffer)) == true) /* Create/send appropriate resp */
+            if ((resend = process_message(set, client, buffer))) /* Create/send appropriate resp */
             {
                 send_pack(set, client); /* Case: bad ACK seq num, retransmit. */
             }
@@ -368,12 +368,20 @@ bool process_message(struct server_settings *set, struct conn_client *client, co
         return false;
     }
     
-    if ((client->r_packet->flags == FLAG_PSH) &&
+    if ((client->r_packet->flags & FLAG_PSH) &&
         (client->r_packet->seq_num == (uint8_t) (client->s_packet->seq_num + 1))) // cracked cast
     {
-        print_payload(set, client->r_packet);
         create_pack(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
         send_pack(set, client);
+    
+        if (client->r_packet->flags & FLAG_TRN && !set->game->validate(set->game))
+        {
+            return false;
+        }
+        
+        // put the payload into Game struct
+        set->game->updateBoard(set->game);
+        
     } else if (client->r_packet->flags == FLAG_FIN)
     {
         create_pack(client->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
@@ -385,12 +393,17 @@ bool process_message(struct server_settings *set, struct conn_client *client, co
 
 void print_payload(struct server_settings *set, struct packet *r_packet)
 {
-    printf("\n");
-    if (write(STDOUT_FILENO, r_packet->payload, r_packet->length) == -1)
-    {
-        printf("Could not write payload to output.");
-    }
-    printf("\n");
+//    printf("\n");
+//    if (write(STDOUT_FILENO, r_packet->payload, r_packet->length) == -1)
+//    {
+//        printf("Could not write payload to output.");
+//    }
+//    printf("\n");
+
+    // set the cursor in game
+    set->game->cursor = r_packet->payload;
+    
+    set->game->displayBoardWithCursor(set->game);
     set->mm->mm_free(set->mm, r_packet->payload);
     r_packet->payload = NULL;
 }
