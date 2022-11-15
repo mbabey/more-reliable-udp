@@ -246,7 +246,7 @@ void do_messaging(struct client_settings *set)
         // TODO: update game struct with packet info
         set->game->updateGame(array, turn, cursor);
         
-        set->game->displayBoardWithCursor(set->game);
+        set->game->displayBoardWithCursor(set->game); // [X, X, X, ' ', O, ' ', O, ' ', ' ', ' ']
         
         if (set->turn)
         {

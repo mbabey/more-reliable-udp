@@ -218,7 +218,7 @@ void connect_to(struct server_settings *set)
     
     if (set->num_conn_client == MAX_CLIENTS) /* If MAX_CLIENTS clients are connected, the game is running. */
     {
-        // Comm with game to get game state update
+        // TODO: Comm with game to get game state update
         
         curr_cli = set->first_conn_client;
         for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
@@ -347,7 +347,7 @@ bool process_message(struct server_settings *set, struct conn_client *client, co
     
     /* If wrong ACK, can save some time by not decoding. */
     if ((*data_buffer == FLAG_ACK) &&
-        (*(data_buffer + 1) != client->s_packet->seq_num))
+        ((uint8_t) *(data_buffer + 1) != client->s_packet->seq_num)) // cracked cast
     {
         return true; /* Bad seq num: must resend previously sent packet. */
     }
@@ -363,13 +363,10 @@ bool process_message(struct server_settings *set, struct conn_client *client, co
     {
         create_pack(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
         send_pack(set, client);
-    
-        if (client->r_packet->flags & FLAG_TRN && !set->game->validateMove(set->game))
-        {
-            return false;
-        }
         
         // TODO: put the payload into Game struct
+        set->game->cursor = *client->r_packet->payload;
+        
         set->game->updateBoard(set->game);
     
         set->mm->mm_free(set->mm, client->r_packet->payload);
