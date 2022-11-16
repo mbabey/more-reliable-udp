@@ -61,14 +61,14 @@ void get_output_address(struct proxy_settings *set);
 void await_connect(struct proxy_settings *set);
 
 /**
- * do_await.
+ * sv_recvfrom.
  * <p>
  * Await a message from the connected client. If no message is received and a timeout occurs,
  * resend the last-sent packet. If a timeout occurs too many times, drop the connection.
  * </p>
  * @param set - the proxy settings
  * @param send_packet - the packet struct to send
- * @param recv_packet - the packet struct to receive
+ * @param recv_packet - the packet struct to sv_recvfrom
  */
 void await_message(struct proxy_settings *set);
 

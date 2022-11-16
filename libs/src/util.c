@@ -53,18 +53,18 @@ void set_self_ip(char **ip)
     freeaddrinfo(results);
 }
 
-void deserialize_packet(struct packet *packet, const uint8_t *data_buffer)
+void deserialize_packet(struct packet *packet, const uint8_t *buffer)
 {
     size_t bytes_copied;
     
     bytes_copied = 0;
-    memcpy(&packet->flags, data_buffer + bytes_copied, sizeof(packet->flags));
+    memcpy(&packet->flags, buffer + bytes_copied, sizeof(packet->flags));
     bytes_copied += sizeof(packet->flags);
     
-    memcpy(&packet->seq_num, data_buffer + bytes_copied, sizeof(packet->seq_num));
+    memcpy(&packet->seq_num, buffer + bytes_copied, sizeof(packet->seq_num));
     bytes_copied += sizeof(packet->seq_num);
     
-    memcpy(&packet->length, data_buffer + bytes_copied, sizeof(packet->length));
+    memcpy(&packet->length, buffer + bytes_copied, sizeof(packet->length));
     packet->length = ntohs(packet->length);
     bytes_copied += sizeof(packet->length);
     
@@ -75,41 +75,41 @@ void deserialize_packet(struct packet *packet, const uint8_t *data_buffer)
         {
             return;
         }
-        memcpy(packet->payload, data_buffer + bytes_copied, packet->length);
+        memcpy(packet->payload, buffer + bytes_copied, packet->length);
         *(packet->payload + packet->length) = '\0';
     }
 }
 
 uint8_t *serialize_packet(struct packet *packet)
 {
-    uint8_t  *data_buffer;
+    uint8_t  *buffer;
     size_t   packet_size;
     size_t   bytes_copied;
     uint16_t n_packet_length;
     
-    packet_size      = sizeof(packet->flags) + sizeof(packet->seq_num) + sizeof(packet->length) + packet->length;
-    if ((data_buffer = (uint8_t *) s_malloc(packet_size, __FILE__, __func__, __LINE__)) == NULL)
+    packet_size = PKT_STD_BYTES + packet->length;
+    if ((buffer = (uint8_t *) s_malloc(packet_size, __FILE__, __func__, __LINE__)) == NULL)
     {
         return NULL;
     }
     
     bytes_copied = 0;
-    memcpy(data_buffer + bytes_copied, &packet->flags, sizeof(packet->flags));
+    memcpy(buffer + bytes_copied, &packet->flags, sizeof(packet->flags));
     bytes_copied += sizeof(packet->flags);
     
-    memcpy(data_buffer + bytes_copied, &packet->seq_num, sizeof(packet->seq_num));
+    memcpy(buffer + bytes_copied, &packet->seq_num, sizeof(packet->seq_num));
     bytes_copied += sizeof(packet->seq_num);
     
     n_packet_length = htons(packet->length);
-    memcpy(data_buffer + bytes_copied, &n_packet_length, sizeof(n_packet_length));
+    memcpy(buffer + bytes_copied, &n_packet_length, sizeof(n_packet_length));
     bytes_copied += sizeof(n_packet_length);
     
     if (packet->length > 0)
     {
-        memcpy(data_buffer + bytes_copied, packet->payload, packet->length);
+        memcpy(buffer + bytes_copied, packet->payload, packet->length);
     }
     
-    return data_buffer;
+    return buffer;
 }
 
 void set_string(char **str, const char *new_str)
@@ -134,6 +134,16 @@ void set_string(char **str, const char *new_str)
     strcpy(*str, new_str);
 }
 
+void create_packer(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
+{
+    memset(packet, 0, sizeof(struct packet));
+    
+    packet->flags   = flags;
+    packet->seq_num = seq_num;
+    packet->length  = len;
+    packet->payload = payload;
+}
+
 const char *check_flags(uint8_t flags)
 {
     switch (flags)
@@ -153,6 +163,10 @@ const char *check_flags(uint8_t flags)
         case FLAG_FIN:
         {
             return "FIN";
+        }
+        case (FLAG_PSH | FLAG_TRN):
+        {
+            return "PSH/TRN";
         }
         case (FLAG_SYN | FLAG_ACK):
         {

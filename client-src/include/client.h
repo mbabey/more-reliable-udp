@@ -18,7 +18,7 @@
  * <li>server_fd: file descriptor of the socket connected to the server</li>
  * <li>turn: whether it is this client's turn</li>
  * <li>server_addr: the address of the server connection</li>
- * <li>timeout: timeval used to determine time client will await a message before acting</li>
+ * <li>timeout: timeval used to determine time client will sv_recvfrom a message before acting</li>
  * <li>mm: a memory manager for the client</li>
  * <li>s_packet: the last-sent packet for this client</li>
  * <li>r_packet: the last-received packet for this client</li>
@@ -32,11 +32,10 @@ struct client_settings
     int       server_fd;
     bool turn;
     
-    struct Game *game;
-    
     struct sockaddr_in    *server_addr;
     struct timeval        *timeout;
     struct memory_manager *mm;
+    struct Game           *game;
     
     struct packet *s_packet;
     struct packet *r_packet;
@@ -49,9 +48,9 @@ struct client_settings
  * </p>
  * @param argc - the number of command line arguments
  * @param argv - the command line arguments
- * @param settings - the client settings
+ * @param set - the client set
  */
-void run_client(int argc, char *argv[], struct client_settings *settings);
+void run_client(int argc, char *argv[], struct client_settings *set);
 
 /**
  * close_client

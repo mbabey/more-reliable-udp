@@ -36,70 +36,47 @@ static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-cons
 void open_client_socket(struct client_settings *set);
 
 /**
- * do_connect
+ * cl_connect
  * <p>
  * Send a SYN packet to the server. Await a SYN/ACK packet. Synchronize the communication port number with the server.
  * Send an ACK packet to the server on that port.
  * </p>
  * @param set - the settings for the client
  */
-void do_connect(struct client_settings *set);
+void cl_connect(struct client_settings *set);
 
 /**
- * do_await
+ * sv_recvfrom
  * <p>
  * Main messaging loop. Read a message from the client. Send the message to the server. Await a response from the server.
  * If a SIGINT occurs, the loop will exit.
  * </p>
  * @param set - the settings for the client
  */
-void do_messaging(struct client_settings *set);
+void cl_messaging(struct client_settings *set);
 
 /**
- * get_input
- * <p>
- * Call the controller pointed to by the client settings struct to turn the light on and take user input.
- * </p>
- * @param set - the client settings
- * @return - an integer representing the player's choice of grid location upon which to play
- */
-uint8_t get_input(struct client_settings *set);
-
-/**
- * do_fin_seq
+ * cl_disconnect
  * <p>
  * Send a FIN packet. Wait for a FIN/ACK packet and a FIN packet. Send a FIN/ACK packet. Wait to see if the
  * FIN/ACK was received.
  * </p>
  * @param set - the settings for the client
  */
-void do_fin_seq(struct client_settings *set);
+void cl_disconnect(struct client_settings *set);
 
 /**
- * create_packet
- * <p>
- * Create a packet with flag = flag, sequence number = seq_num, length = len, and payload = payload.
- * </p>
- * @param packet - the packet to construct.
- * @param flags - the flags
- * @param seq_num - the sequence number
- * @param len - the length
- * @param payload - the payload
- */
-void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
-
-/**
- * send_msg
+ * cl_sendto
  * <p>
  * Serialize the packet to send. Send the serialized packet to the server.
  * </p>
  * @param set - the settings for this client
  * @param s_packet - the packet to send
  */
-void send_msg(struct client_settings *set);
+void cl_sendto(struct client_settings *set);
 
 /**
- * await_msg
+ * cl_recvfrom
  * <p>
  * Await a response from the server. If a response is not received within the timeout, retransmit the packet,
  * then wait again. If MAX_TIMEOUT timeouts occur, set running to 0 and return. If the message received from the
@@ -109,7 +86,7 @@ void send_msg(struct client_settings *set);
  * @param s_packet - the packet to retransmit, if necessary
  * @param flag_set - the expected flags to be received
  */
-void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags, uint8_t seq_num);
+void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_flags, uint8_t seq_num);
 
 /**
  * hande_recv_timeout
@@ -123,28 +100,17 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags,
  * @param num_timeouts - the number of timeouts that have occurred
  * @return -1 if the timeout count has been exceeded, 0 if it has not
  */
-int
-handle_timeout(struct client_settings *set, int num_timeouts);
+int handle_timeout(struct client_settings *set, int num_timeouts);
 
 /**
- * process_response
+ * cl_process
  * <p>
  * Handle logic when receiving a PSH packet or a PSH/TRN packet.
  * </p>
  * @param set - the settings for the client
- * @param recv_buffer - the received packet
+ * @param packet_buffer - the received packet
  */
-void process_response(struct client_settings *set, const uint8_t *recv_buffer);
-
-/**
- * retransmit_package
- * <p>
- * Resend a packet and print a relevant message.
- * </p>
- * @param set - the client settings
- * @param s_packet - the packet to send
- */
-void retransmit_packet(struct client_settings *set);
+void cl_process(struct client_settings *set, const uint8_t *packet_buffer);
 
 /**
  * set_signal_handling
@@ -166,13 +132,13 @@ static void set_signal_handling(struct sigaction *sa);
  */
 static void signal_handler(int sig);
 
-void run_client(int argc, char *argv[], struct client_settings *settings)
+void run_client(int argc, char *argv[], struct client_settings *set)
 {
-    init_def_state(argc, argv, settings);
+    init_def_state(argc, argv, set);
     
-    open_client_socket(settings);
+    open_client_socket(set);
     if (!errno)
-    { do_messaging(settings); }
+    { cl_messaging(set); }
 }
 
 void open_client_socket(struct client_settings *set)
@@ -197,29 +163,29 @@ void open_client_socket(struct client_settings *set)
         return;
     }
     
-    do_connect(set);
+    cl_connect(set);
 }
 
-void do_connect(struct client_settings *set)
+void cl_connect(struct client_settings *set)
 {
     memset(set->s_packet, 0, sizeof(struct packet));
     
     printf("\nConnecting to server %s:%u\n", set->server_ip, set->server_port);
     
     create_packet(set->s_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
-    send_msg(set);
+    cl_sendto(set);
     if (!errno)
     {
         uint8_t flag_set[] = {FLAG_SYN | FLAG_ACK};
-        await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
+        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
     
     create_packet(set->s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
     if (!errno)
-    { send_msg(set); }
+    { cl_sendto(set); }
 }
 
-void do_messaging(struct client_settings *set)
+void cl_messaging(struct client_settings *set)
 {
     struct sigaction sa;
     uint8_t          input;
@@ -233,20 +199,15 @@ void do_messaging(struct client_settings *set)
     while (running)
     {
         set->turn = false; /* Clean the turn indicator. */
-    
+        
         /* Update game board, set turn. */
         { /* Scoped to allow variable name consistency. */
             uint8_t flag_set[] = {FLAG_PSH, FLAG_PSH | FLAG_TRN};
-            await_msg(set, flag_set, sizeof(flag_set), (uint8_t) (set->s_packet->seq_num + 1));
+            cl_recvfrom(set, flag_set, sizeof(flag_set), (uint8_t) (set->s_packet->seq_num + 1));
         }
         
         create_packet(set->s_packet, FLAG_ACK, set->r_packet->seq_num, 0, NULL);
-        send_msg(set);
-        
-        // TODO: update game struct with packet info
-        set->game->updateGame(array, turn, cursor);
-        
-        set->game->displayBoardWithCursor(set->game); // [X, X, X, ' ', O, ' ', O, ' ', ' ', ' ']
+        cl_sendto(set);
         
         if (set->turn)
         {
@@ -256,101 +217,95 @@ void do_messaging(struct client_settings *set)
             uint8_t flags = (btn) ? FLAG_PSH | FLAG_TRN : FLAG_PSH;
             create_packet(set->s_packet, flags, (uint8_t) (set->r_packet->seq_num + 1),
                           sizeof(set->game->cursor), &set->game->cursor);
-            send_msg(set);
+            cl_sendto(set);
             
             if (!errno)
             {
                 uint8_t flag_set[] = {FLAG_ACK};
-                await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
+                cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
             }
         }
     }
     
     if (!errno)
-    { do_fin_seq(set); }
+    { cl_disconnect(set); }
 }
 
-uint8_t get_input(struct client_settings *set)
-{
-    // TODO(m / p): this will call the controller, which will return the input. This function should probably belong to the controller.
-    return 0;
-}
-
-void do_fin_seq(struct client_settings *set)
+void cl_disconnect(struct client_settings *set)
 {
     create_packet(set->s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
-    send_msg(set);
+    cl_sendto(set);
     if (!errno)
     {
         uint8_t flag_set[] = {FLAG_FIN | FLAG_ACK};
-        await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
+        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
     if (!errno)
     {
         uint8_t flag_set[] = {FLAG_FIN};
-        await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
+        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
     
     create_packet(set->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
     if (!errno)
-    { send_msg(set); }
+    { cl_sendto(set); }
     if (!errno)
     {
         uint8_t flag_set[] = {FLAG_FIN};
-        await_msg(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
+        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
 }
 
-void send_msg(struct client_settings *set)
+void cl_sendto(struct client_settings *set)
 {
-    socklen_t sockaddr_in_size;
-    uint8_t   *serialized_packet;
+    socklen_t size_addr_in;
+    uint8_t   *packet_buffer;
     size_t    packet_size;
     
-    sockaddr_in_size  = sizeof(struct sockaddr_in);
-    serialized_packet = serialize_packet(set->s_packet); /* Serialize the packet to send. */
+    packet_buffer = serialize_packet(set->s_packet); /* Serialize the packet to send. */
     if (errno == ENOTRECOVERABLE)
     {
         running = 0;
         return;
     }
-    set->mm->mm_add(set->mm, serialized_packet);
-    packet_size = sizeof(set->s_packet->flags) + sizeof(set->s_packet->seq_num)
-                  + sizeof(set->s_packet->length) + set->s_packet->length;
+    set->mm->mm_add(set->mm, packet_buffer);
     
-    if (sendto(set->server_fd, serialized_packet, packet_size, 0,
-               (struct sockaddr *) set->server_addr, sockaddr_in_size) == -1)
+    size_addr_in = sizeof(struct sockaddr_in);
+    packet_size  = PKT_STD_BYTES + set->s_packet->length;
+    
+    if (sendto(set->server_fd, packet_buffer, packet_size, 0, (struct sockaddr *) set->server_addr, size_addr_in) == -1)
     {
         /* errno will be set. */
         perror("Message transmission to server failed: ");
         return;
     }
     
-    printf("Sent packet:\n\tFlags: %s\n\tSequence number: %d\n\n", check_flags(set->s_packet->flags),
-           set->s_packet->seq_num);
+    printf("\nSent packet:\n\tFlags: %s\n\tSequence number: %d\n\n",
+           check_flags(set->s_packet->flags), set->s_packet->seq_num);
     
-    set->mm->mm_free(set->mm, serialized_packet);
+    set->mm->mm_free(set->mm, packet_buffer);
 }
 
-void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags, uint8_t seq_num)
+void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_flags, uint8_t seq_num)
 {
-    socklen_t sockaddr_in_size;
-    uint8_t   recv_buffer[BUF_LEN];
-    bool      correct_packet;
+    socklen_t size_addr_in;
+    uint8_t   packet_buffer[BUF_LEN];
+    bool      go_ahead;
     int       num_timeouts;
     
+    memset(set->r_packet, 0, sizeof(struct packet));
     set->timeout->tv_sec = BASE_TIMEOUT;
     
-    sockaddr_in_size = sizeof(struct sockaddr_in);
-    correct_packet   = false; /* We will assume we have the incorrect packet until we don't */
-    num_timeouts     = 0;
+    size_addr_in = sizeof(struct sockaddr_in);
+    go_ahead     = false;
+    num_timeouts = 0;
     do
     {
-        for (size_t i = 0; i < num_flags; ++i)
-        {
-            printf("\nAwaiting response with flags: %s", check_flags(flag_set[i]));
-        }
         printf("\n");
+        for (uint8_t i = 0; i < num_flags; ++i)
+        {
+            printf("Awaiting response with flags: %s\n", check_flags(flag_set[i]));
+        }
         
         /* Update socket's timeout. */
 //        if (setsockopt(set->server_fd,
@@ -361,11 +316,9 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags,
 //            return;
 //        }
         
-        memset(recv_buffer, 0, BUF_LEN); /* Clear our reception buffer. */
-        
         /* set->server_addr will be overwritten when a message is received on the socket set->server_fd */
-        if (recvfrom(set->server_fd, recv_buffer, BUF_LEN, 0,
-                     (struct sockaddr *) set->server_addr, &sockaddr_in_size) == -1)
+        memset(packet_buffer, 0, BUF_LEN);
+        if (recvfrom(set->server_fd, packet_buffer, BUF_LEN, 0, (struct sockaddr *) set->server_addr, &size_addr_in) == -1)
         {
             switch (errno)
             {
@@ -391,21 +344,22 @@ void await_msg(struct client_settings *set, uint8_t *flag_set, size_t num_flags,
         } else
         {
             num_timeouts = 0; /* Reset num_timeouts: a packet was received. */
-            
-            for (size_t i = 0; !correct_packet && i < num_flags; ++i) /* For each flag in the set, */
+    
+            /* Check the seq num and all flags in the set of accepted flags against
+             * the seq num and flags in the packet_buffer.
+             * If either is invalid at any point, we have the wrong packet. */
+            for (uint8_t i = 0; i < num_flags; ++i)
             {
-                /* Check against the seq num and flags in the recv_buffer. If either is invalid, we have the wrong packet. */
-                correct_packet = *recv_buffer == flag_set[i] && *(recv_buffer + 1) == seq_num;
-            }
-            
-            if (!correct_packet)
-            {
-                retransmit_packet(set);
+                if (!(go_ahead = *packet_buffer == flag_set[i] && *(packet_buffer + 1) == seq_num))
+                {
+                    cl_sendto(set);
+                    break;
+                }
             }
         }
-    } while (!correct_packet); /* While the packet we received is not correct */
+    } while (!go_ahead);
     
-    process_response(set, recv_buffer); /* Once we have the correct packet, we will process it */
+    cl_process(set, packet_buffer); /* Once we have the correct packet, we will process it */
 }
 
 int handle_timeout(struct client_settings *set, int num_timeouts) // TODO(maxwell): implement changing timeout
@@ -435,49 +389,16 @@ int handle_timeout(struct client_settings *set, int num_timeouts) // TODO(maxwel
     }
     
     // Timeout count not exceeded, retransmit.
-    retransmit_packet(set);
+    cl_sendto(set);
     return 0;
 }
 
-void retransmit_packet(struct client_settings *set)
+void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
 {
-    printf("\nRetransmitting packet\n");
+    printf("\nReceived response:\n\tFlags: %s\n\tSequence number: %d\n",
+           check_flags(*packet_buffer), *(packet_buffer + 1));
     
-    socklen_t sockaddr_in_size;
-    uint8_t   *serialized_packet;
-    size_t    packet_size;
-    
-    serialized_packet = serialize_packet(set->s_packet);
-    if (errno == ENOMEM)
-    {
-        running = 0;
-        return;
-    }
-    set->mm->mm_add(set->mm, serialized_packet);
-    
-    sockaddr_in_size = sizeof(struct sockaddr_in);
-    packet_size      = sizeof(set->s_packet->flags) + sizeof(set->s_packet->seq_num)
-                       + sizeof(set->s_packet->length) + set->s_packet->length;
-    
-    if (sendto(set->server_fd, serialized_packet, packet_size, 0, (struct sockaddr *) set->server_addr,
-               sockaddr_in_size) == -1)
-    {
-        // Just tell em and go back to timeout.
-        perror("\nMessage retransmission to server failed: \n");
-        return;
-    }
-    
-    printf("\nSent packet:\n\tFlags: %s\n\tSequence number: %d\n", check_flags(*serialized_packet),
-           set->s_packet->seq_num);
-    
-    set->mm->mm_free(set->mm, serialized_packet);
-}
-
-void process_response(struct client_settings *set, const uint8_t *recv_buffer)
-{
-    printf("\nReceived response:\n\tFlags: %s\n\tSequence number: %d\n", check_flags(*recv_buffer), *(recv_buffer + 1));
-    
-    deserialize_packet(set->r_packet, recv_buffer);
+    deserialize_packet(set->r_packet, packet_buffer);
     if (errno == ENOMEM)
     {
         running = 0;
@@ -488,29 +409,17 @@ void process_response(struct client_settings *set, const uint8_t *recv_buffer)
     if (set->r_packet->flags & FLAG_TRN) /* Indicates that it is this client's turn. */
     {
         set->turn = true;
-//        printf("\nYour turn!\n");
-        //set->game->turn =
     }
     
     if (set->r_packet->flags & FLAG_PSH) /* Indicates that the packet contains data which must be displayed. */
     {
-//        printf("\nUI updated.\n"); // TODO(maxwell): show board here
-        // set->game->board = r_packet->payload[0 --> 7]
-        // set->game->cursor = r-Packet->payload[8]
-        // set->game->displayBoardWithCursor(set->game)
+        // TODO: update game struct with packet info
+        set->game->updateGame(array, turn, cursor);
+        
+        set->game->displayBoardWithCursor(set->game);
     }
     
     set->mm->mm_free(set->mm, set->r_packet->payload);
-}
-
-void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
-{
-    memset(packet, 0, sizeof(struct packet));
-    
-    packet->flags   = flags;
-    packet->seq_num = seq_num;
-    packet->length  = len;
-    packet->payload = payload;
 }
 
 void close_client(struct client_settings *set)
@@ -520,6 +429,7 @@ void close_client(struct client_settings *set)
         close(set->server_fd);
     }
     free_memory_manager(set->mm);
+    printf("Closing client.\n");
 }
 
 static void set_signal_handling(struct sigaction *sa)

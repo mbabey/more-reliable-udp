@@ -35,6 +35,11 @@
 #define FLAG_TRN (uint8_t) 16 // 0001 0000
 
 /**
+ * The number of bytes of a packet before the payload is attached.
+ */
+#define PKT_STD_BYTES 4
+
+/**
  * packet
  * <p>
  * Stores packet information.
@@ -70,9 +75,9 @@ void set_self_ip(char **ip);
  * Load the bytes of a buffer into the received packet struct fields.
  * </p>
  * @param packet - the packet to store the buffer info
- * @param data_buffer - the buffer to deserialize
+ * @param buffer - the buffer to deserialize
  */
-void deserialize_packet(struct packet *packet, const uint8_t *data_buffer);
+void deserialize_packet(struct packet *packet, const uint8_t *buffer);
 
 /**
  * serialize_packet
@@ -102,6 +107,19 @@ uint8_t *serialize_packet(struct packet *packet);
  * @param new_str - char*: the new value for the string
  */
 void set_string(char **str, const char *new_str);
+
+/**
+ * create_packet
+ * <p>
+ * Zero a struct packet. Set the flags, sequence number, length, and payload.
+ * </p>
+ * @param packet - the packet struct to initialize
+ * @param flags - the flags to set in the send packet
+ * @param seq_num - the sequence number to set in the send packet
+ * @param len - the length of the payload
+ * @param payload - the payload
+ */
+void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
 
 /**
  * check_flags
