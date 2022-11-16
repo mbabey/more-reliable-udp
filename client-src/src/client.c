@@ -22,6 +22,11 @@
 #define BASE_TIMEOUT 1
 
 /**
+ * The number of bytes needed to be sent to the server to update the server-side game state.
+ */
+#define GAME_DATA_BYTES 2
+
+/**
  * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
  */
 static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
@@ -188,7 +193,7 @@ void cl_connect(struct client_settings *set)
 void cl_messaging(struct client_settings *set)
 {
     struct sigaction sa;
-    uint8_t          input;
+    uint8_t          input_buffer[GAME_DATA_BYTES];
     
     set_signal_handling(&sa);
     
@@ -211,12 +216,17 @@ void cl_messaging(struct client_settings *set)
         
         if (set->turn)
         {
-            bool btn = set->game->take_input(set->game);
+            uint8_t cursor; /* The position of the cursor. */
+            bool btn; /* Whether the button has been pressed. */
+            // input buffer: 1 B cursor, 1 B btn press
+            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
+            
+            input_buffer[0] = cursor;
+            input_buffer[1] = btn;
             
             /* Send input to server. */
-            uint8_t flags = (btn) ? FLAG_PSH | FLAG_TRN : FLAG_PSH;
-            create_packet(set->s_packet, flags, (uint8_t) (set->r_packet->seq_num + 1),
-                          sizeof(set->game->cursor), &set->game->cursor);
+            create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
+                          GAME_DATA_BYTES, input_buffer);
             cl_sendto(set);
             
             if (!errno)
@@ -413,9 +423,7 @@ void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
     
     if (set->r_packet->flags & FLAG_PSH) /* Indicates that the packet contains data which must be displayed. */
     {
-        // TODO: update game struct with packet info
-        set->game->updateGame(array, turn, cursor);
-        
+        set->game->updateGameState(set->r_packet->payload, set->r_packet->payload + 1, set->r_packet->payload + 2);
         set->game->displayBoardWithCursor(set->game);
     }
     
