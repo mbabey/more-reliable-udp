@@ -2,11 +2,10 @@
 // Created by Maxwell Babey on 10/24/22.
 //
 
+#include "../include/manager.h"
 #include "../include/server.h"
+#include "../include/server-util.h"
 #include "../include/setup.h"
-#include "../libs/include/error.h"
-#include "../libs/include/manager.h"
-#include "../libs/include/util.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -16,6 +15,11 @@
  * The number of connections which may be queued at once. NOTE: server does not currently time out.
  */
 //#define MAX_TIMEOUTS_SERVER 3
+
+/**
+ * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
+ */
+static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) : var must change
 
 /**
  * open_server

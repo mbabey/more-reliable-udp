@@ -22,23 +22,6 @@ set(SERVER_HDR_LIST
         ${SERVER_INC_DIR}/setup.h
         )
 
-set(LIB_SRC_DIR ${PROJECT_SOURCE_DIR}/libs/src)
-set(LIB_INC_DIR ${PROJECT_SOURCE_DIR}/libs/include)
-
-set(LIB_SRC_LIST
-        ${LIB_SRC_DIR}/error.c
-        ${LIB_SRC_DIR}/input-validation.c
-        ${LIB_SRC_DIR}/manager.c
-        ${LIB_SRC_DIR}/util.c
-        )
-set(LIB_HDR_LIST
-        ${LIB_INC_DIR}/error.h
-        ${LIB_INC_DIR}/input-validation.h
-        ${LIB_INC_DIR}/manager.h
-        ${LIB_INC_DIR}/util.h
-        ${LIB_INC_DIR}/structs.h
-        )
-
 set(SANITIZE TRUE)
 
 add_compile_definitions(_POSIX_C_SOURCE=200809L)
@@ -165,5 +148,5 @@ set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-clang-analyzer-security.insecureAPI
 set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-android-cloexec-accept")
 set(CMAKE_C_CLANG_TIDY clang-tidy -checks=${CLANG_TIDY_CHECKS};--quiet)
 
-add_executable(server ${SERVER_SRC_LIST} ${LIB_SRC_LIST})
+add_executable(server ${SERVER_SRC_LIST})
 add_dependencies(server doxygen-server)
