@@ -107,6 +107,47 @@ in_port_t parse_port(const char *buffer, uint8_t base)
     return port;
 }
 
+void set_self_ip(char **ip)
+{
+    struct addrinfo hints;
+    struct addrinfo *results;
+    struct addrinfo *res_next;
+    char            *res_ip;
+    char            *hostname;
+    const size_t    hostname_buf = 128;
+    
+    hostname = (char *) s_malloc(hostname_buf, __FILE__, __func__, __LINE__);
+    
+    gethostname(hostname, hostname_buf);
+    
+    memset(&hints, 0,
+           sizeof(struct addrinfo)); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling) : Not a POSIX function
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_PASSIVE;
+    
+    if (getaddrinfo(hostname, NULL, &hints, &results) != 0)
+    {
+        // Result: user will be informed they must enter their IP address manually.
+        free(hostname);
+        return;
+    }
+    
+    for (res_next = results; res_next != NULL; res_next = res_next->ai_next)
+    {
+        res_ip = inet_ntoa( // NOLINT : No threads here, upcast intentional
+                ((struct sockaddr_in *) res_next->ai_addr)->sin_addr);
+        
+        if (strcmp(res_ip, "127.0.0.1") != 0) // If the address is localhost, go to the next address.
+        {
+            *ip = res_ip;
+        }
+    }
+    
+    free(hostname);
+    freeaddrinfo(results);
+}
+
 int open_server_socket(char *ip, in_port_t port)
 {
     struct sockaddr_in addr;
@@ -253,46 +294,6 @@ uint8_t modify_timeout(uint8_t timeout_count)
 }
 
 
-void set_self_ip(char **ip)
-{
-    struct addrinfo hints;
-    struct addrinfo *results;
-    struct addrinfo *res_next;
-    char            *res_ip;
-    char            *hostname;
-    const size_t    hostname_buf = 128;
-    
-    hostname = (char *) s_malloc(hostname_buf, __FILE__, __func__, __LINE__);
-    
-    gethostname(hostname, hostname_buf);
-    
-    memset(&hints, 0,
-           sizeof(struct addrinfo)); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling) : Not a POSIX function
-    hints.ai_family   = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_PASSIVE;
-    
-    if (getaddrinfo(hostname, NULL, &hints, &results) != 0)
-    {
-        // Result: user will be informed they must enter their IP address manually.
-        free(hostname);
-        return;
-    }
-    
-    for (res_next = results; res_next != NULL; res_next = res_next->ai_next)
-    {
-        res_ip = inet_ntoa( // NOLINT : No threads here, upcast intentional
-                ((struct sockaddr_in *) res_next->ai_addr)->sin_addr);
-        
-        if (strcmp(res_ip, "127.0.0.1") != 0) // If the address is localhost, go to the next address.
-        {
-            *ip = res_ip;
-        }
-    }
-    
-    free(hostname);
-    freeaddrinfo(results);
-}
 
 void deserialize_packet(struct packet *packet, const uint8_t *buffer)
 {

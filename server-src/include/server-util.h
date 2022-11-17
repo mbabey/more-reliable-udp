@@ -127,7 +127,7 @@ struct conn_client
  * @param ip - char *: the string containing the IP address
  * @param base - int: base in which to interpret the IP address
  */
-char * check_ip(char *ip, uint8_t base);
+char *check_ip(char *ip, uint8_t base);
 
 /**
  * parse_port
@@ -141,6 +141,15 @@ char * check_ip(char *ip, uint8_t base);
  * @author D'Arcy Smith
  */
 in_port_t parse_port(const char *buffer, uint8_t base);
+
+/**
+ * set_self_ip.
+ * <p>
+ * Get this host's IP address and attach it to the parameter char pointer pointer.
+ * </p>
+ * @param ip - char**: pointer to pointer to first char in IP address.
+ */
+void set_self_ip(char **ip);
 
 /**
  * open_server_socket
@@ -196,15 +205,6 @@ struct conn_client *create_conn_client(struct server_settings *set);
  * @return
  */
 uint8_t modify_timeout(uint8_t timeout_count);
-
-/**
- * set_self_ip.
- * <p>
- * Get this host's IP address and attach it to the parameter char pointer pointer.
- * </p>
- * @param ip - char**: pointer to pointer to first char in IP address.
- */
-void set_self_ip(char **ip);
 
 /**
  * deserialize_packet
