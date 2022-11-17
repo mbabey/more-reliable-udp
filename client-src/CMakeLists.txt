@@ -12,35 +12,19 @@ set(CLIENT_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 set(CLIENT_INC_DIR ${PROJECT_SOURCE_DIR}/include)
 
 set(CLIENT_SRC_LIST
-        ${CLIENT_SRC_DIR}/main.c
         ${CLIENT_SRC_DIR}/client.c
+        ${CLIENT_SRC_DIR}/client-util.c
+        ${CLIENT_SRC_DIR}/main.c
+        ${CLIENT_SRC_DIR}/manager.c
         ${CLIENT_SRC_DIR}/setup.c
         )
 set(CLIENT_HDR_LIST
         ${CLIENT_INC_DIR}/client.h
+        ${CLIENT_INC_DIR}/client-util.h
+        ${CLIENT_INC_DIR}/manager.h
         ${CLIENT_INC_DIR}/setup.h
         )
 # End Client.
-
-
-# Shared:
-set(LIB_SRC_DIR ${PROJECT_SOURCE_DIR}/libs/src)
-set(LIB_INC_DIR ${PROJECT_SOURCE_DIR}/libs/include)
-
-set(LIB_SRC_LIST
-        ${LIB_SRC_DIR}/error.c
-        ${LIB_SRC_DIR}/input-validation.c
-        ${LIB_SRC_DIR}/manager.c
-        ${LIB_SRC_DIR}/util.c
-        )
-set(LIB_HDR_LIST
-        ${LIB_INC_DIR}/error.h
-        ${LIB_INC_DIR}/input-validation.h
-        ${LIB_INC_DIR}/manager.h
-        ${LIB_INC_DIR}/util.h
-        ${LIB_INC_DIR}/structs.h
-        )
-# End Shared.
 
 set(SANITIZE TRUE)
 
@@ -168,5 +152,5 @@ set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-clang-analyzer-security.insecureAPI
 set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-android-cloexec-accept")
 set(CMAKE_C_CLANG_TIDY clang-tidy -checks=${CLANG_TIDY_CHECKS};--quiet)
 
-add_executable(client ${CLIENT_SRC_LIST} ${LIB_SRC_LIST})
+add_executable(client ${CLIENT_SRC_LIST})
 add_dependencies(client doxygen-client)

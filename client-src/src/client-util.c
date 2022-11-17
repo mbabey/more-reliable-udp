@@ -1,56 +1,105 @@
 //
-// Created by Maxwell Babey on 10/23/22.
+// Created by Maxwell Babey on 11/17/22.
 //
 
+#include "../include/client-util.h"
 #include "../include/manager.h"
-#include "../include/error.h"
-#include "../include/util.h"
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <limits.h>
+#include <stdint.h>
 
-void set_self_ip(char **ip)
+char *check_ip(char *ip, uint8_t base)
 {
-    struct addrinfo hints;
-    struct addrinfo *results;
-    struct addrinfo *res_next;
-    char            *res_ip;
-    char            *hostname;
-    const size_t    hostname_buf = 128;
+    const char *msg     = NULL;
+    char       *ip_cpy  = NULL;
+    char       *end     = NULL;
+    char       *tok     = NULL;
+    char       delim[2] = ".";
+    int        tok_count;
+    long       num;
     
-    hostname = (char *) s_malloc(hostname_buf, __FILE__, __func__, __LINE__);
-    
-    gethostname(hostname, hostname_buf);
-    
-    memset(&hints, 0,
-           sizeof(struct addrinfo)); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling) : Not a POSIX function
-    hints.ai_family   = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_PASSIVE;
-    
-    if (getaddrinfo(hostname, NULL, &hints, &results) != 0)
+    set_string(&ip_cpy, ip);
+    if (errno == ENOMEM)
     {
-        // Result: user will be informed they must enter their IP address manually.
-        free(hostname);
-        return;
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return NULL;
     }
     
-    for (res_next = results; res_next != NULL; res_next = res_next->ai_next)
+    /* Tokenize the IP address by byte. */
+    tok = strtok(ip_cpy, delim); // NOLINT(concurrency-mt-unsafe) : No threads here
+    
+    tok_count = 0;
+    while (tok != NULL)
     {
-        res_ip = inet_ntoa( // NOLINT : No threads here, upcast intentional
-                ((struct sockaddr_in *) res_next->ai_addr)->sin_addr);
+        ++tok_count;
         
-        if (strcmp(res_ip, "127.0.0.1") != 0) // If the address is localhost, go to the next address.
+        num = strtol(tok, &end, base);
+        
+        if (end == tok)
         {
-            *ip = res_ip;
+            msg = "IP address must be a decimal number";
+        } else if (*end != '\0')
+        {
+            msg = "IP address input must not have extra characters appended";
+        } else if ((num < 0 || num > UINT8_MAX) ||
+                   ((LONG_MIN == num || LONG_MAX == num) && ERANGE == errno))
+        {
+            msg = "IP address unit must be between 0 and 255";
         }
+        
+        if (msg)
+        {
+            advise_usage(msg);
+            free(ip_cpy);
+            return NULL;
+        }
+        
+        tok = strtok(NULL, delim); // NOLINT(concurrency-mt-unsafe) : No threads here
+    }
+    if (tok_count != 4)
+    {
+        msg = "IP address must be in form XXX.XXX.XXX.XXX";
+        advise_usage(msg);
+        free(ip_cpy);
+        return NULL;
+    }
+    free(ip_cpy);
+    
+    return ip;
+}
+
+in_port_t parse_port(const char *buffer, uint8_t base)
+{
+    const char *msg = NULL;
+    char       *end;
+    long       sl;
+    in_port_t  port;
+    
+    sl = strtol(buffer, &end, base);
+    
+    if (end == buffer)
+    {
+        msg = "Port number must be a decimal number";
+    } else if (*end != '\0')
+    {
+        msg = "Port number input must not have extra characters appended";
+    } else if ((sl < 0 || sl > UINT16_MAX) ||
+               ((LONG_MIN == sl || LONG_MAX == sl) && ERANGE == errno))
+    {
+        msg = "Port number must be between 0 and 65535";
     }
     
-    free(hostname);
-    freeaddrinfo(results);
+    if (msg)
+    {
+        advise_usage(msg);
+    }
+    
+    port = (in_port_t) sl;
+    
+    return port;
 }
 
 void deserialize_packet(struct packet *packet, const uint8_t *buffer)
@@ -181,4 +230,19 @@ const char *check_flags(uint8_t flags)
             return "INVALID";
         }
     }
+}
+
+void fatal_errno(const char *file, const char *func, const size_t line, int err_code) // NOLINT(bugprone-easily-swappable-parameters)
+{
+    const char *msg;
+    
+    msg = strerror(err_code);                                                                  // NOLINT(concurrency-mt-unsafe)
+    fprintf(stderr, "Error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code, msg);  // NOLINT(cert-err33-c)
+    errno = ENOTRECOVERABLE;                                                                           // NOLINT(concurrency-mt-unsafe)
+}
+
+void advise_usage(const char *usage_message)
+{
+    fprintf(stderr, "Usage: %s\n", usage_message); // NOLINT(cert-err33-c) : val not needed
+    errno = ENOTRECOVERABLE;
 }
