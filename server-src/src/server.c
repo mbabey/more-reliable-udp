@@ -2,11 +2,11 @@
 // Created by Maxwell Babey on 10/24/22.
 //
 
-#include "../../libs/include/error.h"
-#include "../../libs/include/manager.h"
-#include "../../libs/include/util.h"
 #include "../include/server.h"
 #include "../include/setup.h"
+#include "../libs/include/error.h"
+#include "../libs/include/manager.h"
+#include "../libs/include/util.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>

@@ -24,7 +24,7 @@
 /**
  * The number of bytes needed to be sent to the server to update the server-side game state.
  */
-#define GAME_DATA_BYTES 2
+#define GAME_SEND_BYTES 2
 
 /**
  * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
@@ -193,7 +193,7 @@ void cl_connect(struct client_settings *set)
 void cl_messaging(struct client_settings *set)
 {
     struct sigaction sa;
-    uint8_t          input_buffer[GAME_DATA_BYTES];
+    uint8_t          input_buffer[GAME_SEND_BYTES];
     
     set_signal_handling(&sa);
     
@@ -226,7 +226,7 @@ void cl_messaging(struct client_settings *set)
             
             /* Send input to server. */
             create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
-                          GAME_DATA_BYTES, input_buffer);
+                          GAME_SEND_BYTES, input_buffer);
             cl_sendto(set);
             
             if (!errno)

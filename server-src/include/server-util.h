@@ -5,7 +5,7 @@
 #ifndef RELIABLE_UDP_SERVER_UTIL_HPP
 #define RELIABLE_UDP_SERVER_UTIL_HPP
 
-#include "../../libs/include/util.h"
+#include "../libs/include/util.h"
 #include <signal.h>
 #include <stdbool.h>
 #include <sys/types.h>
