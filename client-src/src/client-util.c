@@ -4,12 +4,12 @@
 
 #include "../include/client-util.h"
 #include "../include/manager.h"
+#include <limits.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <limits.h>
-#include <stdint.h>
 
 char *check_ip(char *ip, uint8_t base)
 {
