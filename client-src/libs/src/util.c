@@ -134,7 +134,7 @@ void set_string(char **str, const char *new_str)
     strcpy(*str, new_str);
 }
 
-void create_packer(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
+void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)
 {
     memset(packet, 0, sizeof(struct packet));
     

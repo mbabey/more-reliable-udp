@@ -1,6 +1,6 @@
 #include "../include/client.h"
-#include <stdlib.h>
 #include <printf.h>
+#include <stdlib.h>
 
 /**
  * main

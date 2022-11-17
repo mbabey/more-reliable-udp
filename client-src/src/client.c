@@ -1,7 +1,7 @@
-#include "../../libs/include/error.h"
-#include "../../libs/include/util.h"
 #include "../include/client.h"
 #include "../include/setup.h"
+#include "../libs/include/error.h"
+#include "../libs/include/util.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <signal.h>
