@@ -7,15 +7,9 @@ project(reliable-udp
 
 set(CMAKE_C_STANDARD 17)
 
-# Root source directories.
-set(CLIENT_DIR ${PROJECT_SOURCE_DIR}/client-src)
-set(SERVER_DIR ${PROJECT_SOURCE_DIR}/server-src)
-set(PROXY_DIR ${PROJECT_SOURCE_DIR}/proxy-src)
-set(LIB_DIR ${PROJECT_SOURCE_DIR}/libs)
-
 # Client:
-set(CLIENT_SRC_DIR ${CLIENT_DIR}/src)
-set(CLIENT_INC_DIR ${CLIENT_DIR}/include)
+set(CLIENT_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
+set(CLIENT_INC_DIR ${PROJECT_SOURCE_DIR}/include)
 
 set(CLIENT_SRC_LIST
         ${CLIENT_SRC_DIR}/main.c
@@ -28,41 +22,10 @@ set(CLIENT_HDR_LIST
         )
 # End Client.
 
-# Server:
-set(SERVER_SRC_DIR ${SERVER_DIR}/src)
-set(SERVER_INC_DIR ${SERVER_DIR}/include)
-
-set(SERVER_SRC_LIST
-        ${SERVER_SRC_DIR}/main.c
-        ${SERVER_SRC_DIR}/server.c
-        ${SERVER_SRC_DIR}/server-util.c
-        ${SERVER_SRC_DIR}/setup.c
-        )
-set(SERVER_HDR_LIST
-        ${SERVER_INC_DIR}/server.h
-        ${SERVER_INC_DIR}/server-util.h
-        ${SERVER_INC_DIR}/setup.h
-        )
-# End Server.
-
-# Proxy:
-set(PROXY_SRC_DIR ${PROXY_DIR}/src)
-set(PROXY_INC_DIR ${PROXY_DIR}/include)
-
-set(PROXY_SRC_LIST
-        ${PROXY_SRC_DIR}/main.c
-        ${PROXY_SRC_DIR}/setup.c
-        ${PROXY_SRC_DIR}/proxy.c
-        )
-set(PROXY_HDR_LIST
-        ${PROXY_INC_DIR}/setup.h
-        ${PROXY_INC_DIR}/proxy.h
-        )
-# End Proxy.
 
 # Shared:
-set(LIB_SRC_DIR ${LIB_DIR}/src)
-set(LIB_INC_DIR ${LIB_DIR}/include)
+set(LIB_SRC_DIR ${PROJECT_SOURCE_DIR}/libs/src)
+set(LIB_INC_DIR ${PROJECT_SOURCE_DIR}/libs/include)
 
 set(LIB_SRC_LIST
         ${LIB_SRC_DIR}/error.c
@@ -206,8 +169,4 @@ set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-android-cloexec-accept")
 set(CMAKE_C_CLANG_TIDY clang-tidy -checks=${CLANG_TIDY_CHECKS};--quiet)
 
 add_executable(client ${CLIENT_SRC_LIST} ${LIB_SRC_LIST})
-add_executable(server ${SERVER_SRC_LIST} ${LIB_SRC_LIST})
-add_executable(proxy ${PROXY_SRC_LIST} ${LIB_SRC_LIST})
 add_dependencies(client doxygen-client)
-add_dependencies(server doxygen-server)
-add_dependencies(proxy doxygen-proxy)
