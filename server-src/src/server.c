@@ -2,11 +2,11 @@
 // Created by Maxwell Babey on 10/24/22.
 //
 
+#include "../include/Game.h"
 #include "../include/manager.h"
 #include "../include/server.h"
 #include "../include/server-util.h"
 #include "../include/setup.h"
-#include "../include/Game.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -16,6 +16,11 @@
  * The number of connections which may be queued at once. NOTE: server does not currently time out.
  */
 //#define MAX_TIMEOUTS_SERVER 3
+
+/**
+ * The standard number of bytes in a payload; the size of the game data
+ */
+#define STD_PAYLOAD_BYTES 11
 
 /**
  * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
@@ -48,6 +53,8 @@ void await_connect(struct server_settings *set);
  * @param set - the server settings
  */
 void connect_to(struct server_settings *set);
+
+uint8_t *assemble_game_payload(struct Game *game);
 
 /**
  * sv_accept
@@ -123,6 +130,10 @@ static void set_signal_handling(struct sigaction *sa);
  */
 static void signal_handler(int sig);
 
+void handle_receipt(struct server_settings *set, struct conn_client *curr_cli, fd_set *readfds);
+
+void handle_broadcast(struct server_settings *set, struct conn_client *curr_cli);
+
 void run(int argc, char *argv[], struct server_settings *set)
 {
     init_def_state(argc, argv, set);
@@ -188,48 +199,80 @@ void connect_to(struct server_settings *set)
         }
     }
     
-    /* If there is action on the main socket, it is a new connection. */
-    if (FD_ISSET(set->server_fd, &readfds))
+    handle_receipt(set, curr_cli, &readfds);
+    if (set->num_conn_client <= MAX_CLIENTS) /* If MAX_CLIENTS clients are connected, the game is running. */
+    {
+        handle_broadcast(set, curr_cli);
+    }
+}
+
+void handle_receipt(struct server_settings *set, struct conn_client *curr_cli, fd_set *readfds)
+{/* If there is action on the main socket, it is a new connection. */
+    if (FD_ISSET(set->server_fd, readfds))
     {
         if (!errno)
         { sv_accept(set); }
     } else
     {
-        /* Receive messages from each client. */
-        curr_cli = set->first_conn_client;
-        for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
+        curr_cli         = set->first_conn_client;
+        for (int cli_num = 0;
+             curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)  /* Receive messages from each client. */
         {
-            if (FD_ISSET(curr_cli->c_fd, &readfds))
+            if (FD_ISSET(curr_cli->c_fd, readfds))
             {
-                // cli_threads[cli_num] = new pthread
-                // create_pthread(cli_threads[cli_num], sv_recvfrom, cli)
                 if (!errno)
                 { sv_recvfrom(set, curr_cli); }
             }
             curr_cli = curr_cli->next; /* Go to next client in list. */
         }
     }
-    /* for i < MAX_CLIENTS, pthread_join(cli_threads[i], NULL) */
+}
+
+void handle_broadcast(struct server_settings *set, struct conn_client *curr_cli)
+{
+    uint8_t *payload;
     
-    if (set->num_conn_client <= MAX_CLIENTS) /* If MAX_CLIENTS clients are connected, the game is running. */
+    if ((payload = assemble_game_payload(set->game)) == NULL)
     {
-        // TODO: Comm with game to get game state update
-        
-        curr_cli = set->first_conn_client;
-        for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
-        {
-            /* Decide which client's turn it is. That client will be sent a PSH/TRN */
-            if (!errno)
-            {
-                uint8_t flags = (cli_num == set->game->turn % MAX_CLIENTS) ? (FLAG_PSH | FLAG_TRN) : FLAG_PSH;
-                create_packet(curr_cli->s_packet, flags, (uint8_t) (curr_cli->r_packet->seq_num + 1), 0, NULL);
-            }
-            if (!errno)
-            { sv_sendto(set, curr_cli); }
-            if (!errno)
-            { sv_recvfrom(set, curr_cli); }
-        }
+        running = 0;
+        return;
     }
+    set->mm->mm_add(set->mm, payload);
+    
+    curr_cli = set->first_conn_client;
+    for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
+    {
+        /* Decide which client's turn it is. That client will be sent a PSH/TRN */
+        if (!errno)
+        {
+            uint8_t flags = (cli_num == set->game->turn % MAX_CLIENTS) ? (FLAG_PSH | FLAG_TRN) : FLAG_PSH;
+            create_packet(curr_cli->s_packet, flags, (uint8_t) (curr_cli->r_packet->seq_num + 1), STD_PAYLOAD_BYTES,
+                          payload);
+        }
+        if (!errno)
+        { sv_sendto(set, curr_cli); }
+        if (!errno)
+        { sv_recvfrom(set, curr_cli); }
+    }
+    
+    set->mm->mm_free(set->mm, payload);
+}
+
+uint8_t *assemble_game_payload(struct Game *game)
+{
+    uint8_t *payload;
+    
+    if ((payload = (uint8_t *) s_calloc(STD_PAYLOAD_BYTES, sizeof(uint8_t),
+                                        __FILE__, __func__, __LINE__)) == NULL)
+    {
+        return NULL;
+    }
+    
+    *payload       = game->cursor;
+    *(payload + 1) = game->turn;
+    memcpy(payload + 2, game->trackGame, sizeof(game->trackGame));
+    
+    return payload;
 }
 
 void sv_accept(struct server_settings *set)
