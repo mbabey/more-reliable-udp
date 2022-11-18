@@ -30,7 +30,7 @@ set(CLIENT_HDR_LIST
         )
 # End Client.
 
-set(SANITIZE TRUE)
+set(SANITIZE FALSE)
 
 add_compile_definitions(_POSIX_C_SOURCE=200809L)
 add_compile_definitions(_XOPEN_SOURCE=700)
@@ -156,9 +156,12 @@ set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-clang-analyzer-security.insecureAPI
 set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-android-cloexec-accept")
 set(CMAKE_C_CLANG_TIDY clang-tidy -checks=${CLANG_TIDY_CHECKS};--quiet)
 
-# wiringPi libraries : Comment out to compile if libraries not installed.
-find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
-target_link_libraries(game ${WIRINGPI_LIBRARIES})
-
 add_executable(client ${CLIENT_SRC_LIST})
 add_dependencies(client doxygen-client)
+
+# wiringPi libraries : Comment out to allow build if libraries not installed.
+target_include_directories(client PRIVATE include)
+target_include_directories(client PRIVATE /usr/local/include)
+target_link_directories(client PRIVATE /usr/local/lib)
+find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
+target_link_libraries(client ${WIRINGPI_LIBRARIES})
