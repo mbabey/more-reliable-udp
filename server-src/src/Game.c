@@ -444,7 +444,7 @@ bool validateMove(struct Game *currentGame)
 void updateBoard(struct Game* game) {
 
     if(validateMove(game)) {
-        int cell = game->curser;
+        int cell = game->cursor;
 
         // Update character in the specified cell.
         game->trackGame[cell] = game->turn;

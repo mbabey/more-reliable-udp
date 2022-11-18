@@ -8,7 +8,7 @@
 /**
  * Usage message; printed when there is a user error upon running.
  */
-#define USAGE "client -i <host IP> -o <server IP> -p <port number>"
+#define USAGE "client -o <server IP> -p <port number>"
 
 /**
  * set_client_defaults

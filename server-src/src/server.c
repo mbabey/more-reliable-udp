@@ -209,7 +209,7 @@ void connect_to(struct server_settings *set)
     }
     /* for i < MAX_CLIENTS, pthread_join(cli_threads[i], NULL) */
     
-    if (set->num_conn_client == MAX_CLIENTS) /* If MAX_CLIENTS clients are connected, the game is running. */
+    if (set->num_conn_client <= MAX_CLIENTS) /* If MAX_CLIENTS clients are connected, the game is running. */
     {
         // TODO: Comm with game to get game state update
         
@@ -268,6 +268,8 @@ void sv_accept(struct server_settings *set)
         create_packet(new_client->s_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
         if (!errno)
         { sv_sendto(set, new_client); }
+        if (!errno)
+        { sv_recvfrom(set, new_client); }
     }
 }
 
