@@ -6,6 +6,7 @@
 #define GAME_GAME_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define GAME_STATE_BYTES 9
 

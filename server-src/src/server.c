@@ -4,9 +4,9 @@
 
 #include "../include/Game.h"
 #include "../include/manager.h"
+#include "../include/setup.h"
 #include "../include/server.h"
 #include "../include/server-util.h"
-#include "../include/setup.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -18,9 +18,10 @@
 //#define MAX_TIMEOUTS_SERVER 3
 
 /**
- * The standard number of bytes in a payload; the size of the game data
+ * The standard number of bytes in a payload; the size of the game data.
+ * The game data is a uint8_t cursor, a char turn indicator, and a 9 B game state array.
  */
-#define STD_PAYLOAD_BYTES 11
+#define STD_PAYLOAD_BYTES (sizeof(uint8_t) + sizeof(char) + GAME_STATE_BYTES)
 
 /**
  * While set to > 0, the program will continue running. Will be set to 0 by SIGINT or a catastrophic failure.
@@ -387,8 +388,7 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
         create_packet(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
         sv_sendto(set, client);
         
-        // TODO: put the payload into Game struct
-        set->game->cursor = *client->r_packet->payload;
+        set->game->cursor = *client->r_packet->payload; /* We will only need to know the cursor position of the client. */
         
         set->game->updateBoard(set->game);
         
