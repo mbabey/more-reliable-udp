@@ -33,6 +33,7 @@ struct client_settings
     int       server_fd;
     bool turn;
     
+    struct Game           *game;
     struct sockaddr_in    *server_addr;
     struct timeval        *timeout;
     struct memory_manager *mm;

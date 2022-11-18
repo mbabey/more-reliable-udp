@@ -16,12 +16,14 @@ set(SERVER_SRC_LIST
         ${SERVER_SRC_DIR}/server.c
         ${SERVER_SRC_DIR}/server-util.c
         ${SERVER_SRC_DIR}/setup.c
+        ${SERVER_SRC_DIR}/Game.c # By Prabh Sokhey
         )
 set(SERVER_HDR_LIST
         ${SERVER_INC_DIR}/manager.h
         ${SERVER_INC_DIR}/server.h
         ${SERVER_INC_DIR}/server-util.h
         ${SERVER_INC_DIR}/setup.h
+        ${SERVER_INC_DIR}/Game.h # By Prabh Sokhey
         )
 
 set(SANITIZE TRUE)
