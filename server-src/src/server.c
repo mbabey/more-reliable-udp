@@ -153,6 +153,7 @@ void await_connect(struct server_settings *set)
     
     while (running)
     {
+        printf("in select await_connect. running: %d", running);
         connect_to(set);
     }
 }
@@ -174,6 +175,7 @@ void connect_to(struct server_settings *set)
         {
             case EINTR:
             {
+                printf("in select EINTR. running: %d", running);
                 // running set to 0 with signal handler.
                 return;
             }
@@ -217,10 +219,15 @@ void connect_to(struct server_settings *set)
         for (int cli_num = 0; curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)
         {
             /* Decide which client's turn it is. That client will be sent a PSH/TRN */
-            uint8_t flags = (cli_num == set->game->turn % MAX_CLIENTS) ? (FLAG_PSH | FLAG_TRN) : FLAG_PSH;
-            create_packet(curr_cli->s_packet, flags, (uint8_t) (curr_cli->r_packet->seq_num + 1), 0, NULL);
-            sv_sendto(set, curr_cli);
-            sv_recvfrom(set, curr_cli);
+            if (!errno)
+            {
+                uint8_t flags = (cli_num == set->game->turn % MAX_CLIENTS) ? (FLAG_PSH | FLAG_TRN) : FLAG_PSH;
+                create_packet(curr_cli->s_packet, flags, (uint8_t) (curr_cli->r_packet->seq_num + 1), 0, NULL);
+            }
+            if (!errno)
+            { sv_sendto(set, curr_cli); }
+            if (!errno)
+            { sv_recvfrom(set, curr_cli); }
         }
     }
 }
@@ -260,11 +267,11 @@ void sv_accept(struct server_settings *set)
             running = 0;
             return; // errno set
         }
-    
+        
         printf("\nClient connected from: %s:%u\n",
                inet_ntoa(new_client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
                ntohs(new_client->addr->sin_port));
-    
+        
         create_packet(new_client->s_packet, FLAG_SYN | FLAG_ACK, MAX_SEQ, 0, NULL);
         if (!errno)
         { sv_sendto(set, new_client); }
@@ -441,6 +448,7 @@ static void set_signal_handling(struct sigaction *sa)
 static void signal_handler(int sig)
 {
     running = 0;
+    printf("in sig handler\n");
 }
 
 #pragma GCC diagnostic pop
