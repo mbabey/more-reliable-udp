@@ -4,9 +4,9 @@
 
 #include "../include/Game.h"
 #include "../include/manager.h"
-#include "../include/setup.h"
 #include "../include/server.h"
 #include "../include/server-util.h"
+#include "../include/setup.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -55,6 +55,37 @@ void await_connect(struct server_settings *set);
  */
 void connect_to(struct server_settings *set);
 
+/**
+ * handle_receipt
+ * <p>
+ * Handle the receipt of a message on any sockets in readfds. If action is on the main socket, then it is a likely
+ * a new connection and will be handled accordingly. If action is on any other socket, communicate with the client
+ * attached to that socket.
+ * </p>
+ * @param set - the server settings
+ * @param readfds - the set of file descriptors to read form
+ */
+void handle_receipt(struct server_settings *set, fd_set *readfds);
+
+/**
+ * handle_broadcast
+ * <p>
+ * Convert the game state information into a single byte array. For each connected client, send a packet.
+ * The packet will have flags PSH or PSH/TRN, depending on the game state. The difference is interpreted
+ * by the client to indicate turn status.
+ * </p>
+ * @param set - the server settings
+ */
+void handle_broadcast(struct server_settings *set);
+
+/**
+ * assemble_game_payload
+ * <p>
+ * Allocate memory to store the game state information.
+ * </p>
+ * @param game - the game to store the state of
+ * @return pointer to the memory storing the game state
+ */
 uint8_t *assemble_game_payload(struct Game *game);
 
 /**
@@ -131,10 +162,6 @@ static void set_signal_handling(struct sigaction *sa);
  */
 static void signal_handler(int sig);
 
-void handle_receipt(struct server_settings *set, struct conn_client *curr_cli, fd_set *readfds);
-
-void handle_broadcast(struct server_settings *set, struct conn_client *curr_cli);
-
 void run(int argc, char *argv[], struct server_settings *set)
 {
     init_def_state(argc, argv, set);
@@ -172,9 +199,8 @@ void await_connect(struct server_settings *set)
 
 void connect_to(struct server_settings *set)
 {
-    struct conn_client *curr_cli;
-    fd_set             readfds;
-    int                max_fd;
+    fd_set readfds;
+    int    max_fd;
     // pthread_t cli_threads[MAX_CLIENTS]
     
     max_fd = set_readfds(set, &readfds);
@@ -200,22 +226,25 @@ void connect_to(struct server_settings *set)
         }
     }
     
-    handle_receipt(set, curr_cli, &readfds);
+    handle_receipt(set, &readfds);
     if (set->num_conn_client <= MAX_CLIENTS) /* If MAX_CLIENTS clients are connected, the game is running. */
     {
-        handle_broadcast(set, curr_cli);
+        handle_broadcast(set);
     }
 }
 
-void handle_receipt(struct server_settings *set, struct conn_client *curr_cli, fd_set *readfds)
-{/* If there is action on the main socket, it is a new connection. */
+void handle_receipt(struct server_settings *set, fd_set *readfds)
+{
+    struct conn_client *curr_cli;
+    
+    /* If there is action on the main socket, it is a new connection. */
     if (FD_ISSET(set->server_fd, readfds))
     {
         if (!errno)
         { sv_accept(set); }
     } else
     {
-        curr_cli         = set->first_conn_client;
+        curr_cli = set->first_conn_client;
         for (int cli_num = 0;
              curr_cli != NULL && cli_num < MAX_CLIENTS; ++cli_num)  /* Receive messages from each client. */
         {
@@ -229,9 +258,10 @@ void handle_receipt(struct server_settings *set, struct conn_client *curr_cli, f
     }
 }
 
-void handle_broadcast(struct server_settings *set, struct conn_client *curr_cli)
+void handle_broadcast(struct server_settings *set)
 {
-    uint8_t *payload;
+    struct conn_client *curr_cli;
+    uint8_t            *payload;
     
     if ((payload = assemble_game_payload(set->game)) == NULL)
     {
