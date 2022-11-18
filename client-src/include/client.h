@@ -8,6 +8,7 @@
 #include "manager.h"
 #include <stdbool.h>
 #include <sys/types.h>
+#include <netinet/in.h>
 
 /**
  * client_settings
