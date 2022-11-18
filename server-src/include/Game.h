@@ -7,11 +7,20 @@
 
 #include <stdbool.h>
 
-struct Game {
-    char trackGame[9];
+#define GAME_STATE_BYTES 9
+
+struct Game
+{
+    char trackGame[GAME_STATE_BYTES];
     char turn;
-    int curser;
+    int cursor;
     int winCondition;
+    
+    void (*updateGameState)(struct Game *, const uint8_t *, const char *, const uint8_t *);
+    
+    void (*updateBoard)(struct Game *);
+    
+    void (*displayBoardWithCursor)(struct Game *);
 };
 
 //TODO: INITIALIZE STRUCT
@@ -19,7 +28,7 @@ struct Game {
  * Pointer to game to be initialized.
  * @param game Pointer to current game.
  */
-void initializeGame(struct Game* game);
+struct Game *initializeGame(void);
 
 //TODO: DISPLAY BOARD.
 /**
@@ -29,7 +38,7 @@ void initializeGame(struct Game* game);
 void displayBoardEnd(struct Game* game);
 
 //TODO: DISPOAY CURSER ON BOARD.
-void displayBoardWithCursor(struct Game* game);
+void displayBoardWithCursor(struct Game *game);
 
 //TODO: VALIDATE MOVE.
 /**
@@ -38,7 +47,7 @@ void displayBoardWithCursor(struct Game* game);
  * @param game Pointer to current game.
  * @return
  */
-bool validateMove(struct Game* game);
+bool validateMove(struct Game *game);
 
 //TODO: UPDATE BOARD.
 /**
@@ -46,7 +55,7 @@ bool validateMove(struct Game* game);
  * @param piece Piece to update to.
  * @param cell Location to update.
  */
-void updateBoard(struct Game* game);
+void updateBoard(struct Game *game);
 
 //TODO: GET BOARD.
 /**
@@ -88,7 +97,5 @@ bool isGridFull(struct Game* currentGame);
  * @param game Pointer to the current game.
  */
 void displayDetails(struct Game* game);
-
-
 
 #endif //GAME_GAME_H

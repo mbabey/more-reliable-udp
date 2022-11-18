@@ -5,22 +5,75 @@
 #include <stdio.h>
 #include "../include/Game.h"
 #include <ctype.h>
+#include <string.h>
 
-void initializeGame(struct Game* game){
+/**
+ * updateGameState
+ * <p>
+ * Update the game state with a new cursor position, turn character, and track game array.
+ * </p>
+ * @param game - the game to update
+ * @param new_cursor - the new cursor position
+ * @param new_turn - the new turn char
+ * @param new_trackGame - the new track game array
+ */
+void updateGameState(struct Game *game,
+                     const uint8_t *new_cursor,
+                     const char *new_turn,
+                     const uint8_t *new_trackGame);
 
+struct Game *initializeGame(void)
+{
+    // Make game object.
+    struct Game *game = malloc(sizeof(struct Game));
+    
     // All cells are empty to start.
-    for(int i = 0; i < 9; i++) {
+    for (int i = 0; i < GAME_STATE_BYTES; i++)
+    {
         game->trackGame[i] = ' ';
     }
-
+    
     // X goes first.
     game->turn = 'X';
-
+    
     // Start cursor in the center.
-    game->curser = 4;
+    game->cursor = 4;
+    
+    game->updateGameState = updateGameState;
+    
+    game->updateBoard = updateBoard;
+    
+    game->displayBoardWithCursor = displayBoardWithCursor;
+    
+    return game;
 }
 
-void refreshCommandLine() {
+void updateGameState(struct Game *game,
+                     const uint8_t *new_cursor,
+                     const char *new_turn,
+                     const uint8_t *new_trackGame)
+{
+    if (game == NULL)
+    {
+        return;
+    }
+    
+    if (new_cursor != NULL)
+    {
+        game->cursor = *new_cursor;
+    }
+    if (new_turn != NULL)
+    {
+        game->turn = *new_turn;
+    }
+    if (new_trackGame != NULL)
+    {
+        memcpy(game->trackGame, new_trackGame, GAME_STATE_BYTES);
+    }
+}
+
+void refreshCommandLine()
+{
     system("clear");
 }
 
@@ -149,17 +202,16 @@ void displayBoardEnd(struct Game* game) {
         printf("     |     |     \n\n");
         printf(endColor);
     }
-
-
-
 }
 
-void displayBoardWithCursor(struct Game* game) {
+void displayBoardWithCursor(struct Game *game)
+{
     refreshCommandLine();
-
+    
     // TODO: CHECK IF WON, IF TIE, OR CONTINUE GAME CHANGE PRINT.
-
-    if(game->curser == 0) {
+    
+    if (game->cursor == 0)
+    {
         printf("     |     |     \n");
         printf(" |%c| |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -169,9 +221,8 @@ void displayBoardWithCursor(struct Game* game) {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
         printf("     |     |     \n\n");
-    }
-
-    else if(game->curser == 1) {
+    } else if (game->cursor == 1)
+    {
         printf("     |     |     \n");
         printf("  %c  | |%c| |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -181,9 +232,8 @@ void displayBoardWithCursor(struct Game* game) {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
         printf("     |     |     \n\n");
-    }
-
-    else if(game->curser == 2) {
+    } else if (game->cursor == 2)
+    {
         printf("     |     |     \n");
         printf("  %c  |  %c  | |%c|\n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -193,9 +243,8 @@ void displayBoardWithCursor(struct Game* game) {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
         printf("     |     |     \n\n");
-    }
-
-    else if(game->curser == 3) {
+    } else if (game->cursor == 3)
+    {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -205,9 +254,8 @@ void displayBoardWithCursor(struct Game* game) {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
         printf("     |     |     \n\n");
-    }
-
-    else if(game->curser == 4) {
+    } else if (game->cursor == 4)
+    {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -217,9 +265,8 @@ void displayBoardWithCursor(struct Game* game) {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
         printf("     |     |     \n\n");
-    }
-
-    else if(game->curser == 5) {
+    } else if (game->cursor == 5)
+    {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -229,9 +276,8 @@ void displayBoardWithCursor(struct Game* game) {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
         printf("     |     |     \n\n");
-    }
-
-    else if(game->curser == 6) {
+    } else if (game->cursor == 6)
+    {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -241,9 +287,8 @@ void displayBoardWithCursor(struct Game* game) {
         printf("     |     |     \n");
         printf(" |%c| |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
         printf("     |     |     \n\n");
-    }
-
-    else if(game->curser == 7) {
+    } else if (game->cursor == 7)
+    {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -253,9 +298,8 @@ void displayBoardWithCursor(struct Game* game) {
         printf("     |     |     \n");
         printf("  %c  | |%c| |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
         printf("     |     |     \n\n");
-    }
-
-    else if(game->curser == 8) {
+    } else if (game->cursor == 8)
+    {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
         printf("_____|_____|_____\n");
@@ -307,12 +351,14 @@ void displayDetails(struct Game* game) {
  * @param game Pointer to the game struct.
  * @return True/False of if the grid is already full.
  */
-bool isGridFull(struct Game* game) {
-    for(int i = 0; i < 9; i++){
-        if(isspace(game->trackGame[i]))
+bool isGridFull(struct Game *game)
+{
+    for (int i = 0; i < 9; i++)
+    {
+        if (isspace(game->trackGame[i]))
             return false;
     }
-
+    
     return true;
 }
 
@@ -387,9 +433,10 @@ bool isGameOver(struct Game* game) {
         return false;
 }
 
-bool validateMove(struct Game* currentGame) {
-    int tempCurser = currentGame->curser;
-
+bool validateMove(struct Game *currentGame)
+{
+    int tempCurser = currentGame->cursor;
+    
     printf("Cell:%d character:%c\n", tempCurser, currentGame->trackGame[tempCurser]); // FOR TESTING DELETE LATER.
     return isspace(currentGame->trackGame[tempCurser]);
 }
@@ -410,30 +457,30 @@ void updateBoard(struct Game* game) {
         else
             game->turn = 'X';
     }
-
-
 }
 
-void updateCursorVertical(struct Game* currentGame, int joystickX){
-    int up = 0;
-    int down = 245;
-    int tempCursor = currentGame->curser;
-
-    if(joystickX == up && tempCursor - 3 >= 0)
-        currentGame->curser -= 3;
-
-    else if(joystickX >= down && tempCursor + 3 <= 8)
-    currentGame->curser += 3;
+void updateCursorVertical(struct Game *currentGame, int joystickX)
+{
+    int up         = 0;
+    int down       = 245;
+    int tempCursor = currentGame->cursor;
+    
+    if (joystickX == up && tempCursor - 3 >= 0)
+        currentGame->cursor -= 3;
+    
+    else if (joystickX >= down && tempCursor + 3 <= 8)
+        currentGame->cursor += 3;
 }
 
-void updateCursorHorizontal(struct Game* currentGame, int joystickY){
-    int left = 245;
-    int right = 0;
-    int tempCursor = currentGame->curser;
-
-    if(joystickY >= left && tempCursor - 1 >= 0)
-        currentGame->curser -= 1;
-
-    else if(joystickY == right && tempCursor + 1 <= 8)
-        currentGame->curser += 1;
+void updateCursorHorizontal(struct Game *currentGame, int joystickY)
+{
+    int left       = 245;
+    int right      = 0;
+    int tempCursor = currentGame->cursor;
+    
+    if (joystickY >= left && tempCursor - 1 >= 0)
+        currentGame->cursor -= 1;
+    
+    else if (joystickY == right && tempCursor + 1 <= 8)
+        currentGame->cursor += 1;
 }
