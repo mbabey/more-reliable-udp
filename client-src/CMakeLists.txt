@@ -156,5 +156,9 @@ set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-clang-analyzer-security.insecureAPI
 set(CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS},-android-cloexec-accept")
 set(CMAKE_C_CLANG_TIDY clang-tidy -checks=${CLANG_TIDY_CHECKS};--quiet)
 
+# wiringPi libraries : Comment out to compile if libraries not installed.
+find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
+target_link_libraries(game ${WIRINGPI_LIBRARIES})
+
 add_executable(client ${CLIENT_SRC_LIST})
 add_dependencies(client doxygen-client)
