@@ -1,5 +1,6 @@
 #include "../include/setup.h"
 #include "../include/client-util.h"
+#include "../include/Game.h"
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -88,7 +89,16 @@ int allocate_defaults(struct client_settings *set)
         free_memory_manager(set->mm);
         return -1;
     }
+    if ((set->game = initializeGame()) == NULL)
+    {
+        free(set->r_packet);
+        free(set->s_packet);
+        free(set->timeout);
+        free_memory_manager(set->mm);
+        return -1;
+    }
     
+    set->mm->mm_add(set->mm, set->game);
     set->mm->mm_add(set->mm, set->timeout);
     set->mm->mm_add(set->mm, set->s_packet);
     set->mm->mm_add(set->mm, set->r_packet);

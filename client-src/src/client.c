@@ -1,6 +1,8 @@
 #include "../include/client.h"
 #include "../include/client-util.h"
 #include "../include/setup.h"
+#include "../include/Game.h"
+#include "../include/Controller.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -422,7 +424,7 @@ void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
     
     if (set->r_packet->flags & FLAG_PSH) /* Indicates that the packet contains data which must be displayed. */
     {
-        set->game->updateGameState(set->r_packet->payload, set->r_packet->payload + 1, set->r_packet->payload + 2);
+        set->game->updateGameState(set->game, set->r_packet->payload, (char *) set->r_packet->payload + 1, set->r_packet->payload + 2);
         set->game->displayBoardWithCursor(set->game);
     }
     

@@ -6,6 +6,7 @@
 #include "../include/server.h"
 #include "../include/server-util.h"
 #include "../include/setup.h"
+#include "../include/Game.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>

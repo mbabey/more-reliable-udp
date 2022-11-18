@@ -4,6 +4,7 @@
 
 #include "../include/manager.h"
 #include "../include/setup.h"
+#include "../include/Game.h"
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -55,8 +56,13 @@ void set_server_defaults(struct server_settings *set)
         exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
     }
     
-    
-    
+    if ((set->game = initializeGame()) == NULL)
+    {
+        free_memory_manager(set->mm);
+        exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
+    }
+    set->mm->mm_add(set->mm, set->game);
+
 //    if ((set->timeout = (struct timeval *) s_calloc(1, sizeof(struct timeval), __FILE__, __func__, __LINE__)) == NULL)
 //    {
 //        free_memory_manager(set->mm);
@@ -113,7 +119,7 @@ void read_args(int argc, char *argv[], struct server_settings *set)
         if (set->server_ip == NULL)
         {
             (void) fprintf(stderr,
-                    "Could not automatically get host IP address; please enter IP address manually with '-i' flag.\n");
+                           "Could not automatically get host IP address; please enter IP address manually with '-i' flag.\n");
             advise_usage(USAGE);
             free_memory_manager(set->mm);
             exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
