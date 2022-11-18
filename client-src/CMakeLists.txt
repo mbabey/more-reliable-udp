@@ -98,7 +98,7 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
             "-Wvector-operation-performance"
             "-Walloc-zero"
             "-Wtrampolines"
-            "-Wtsan"
+#            "-Wtsan"
             "-Wformat-overflow=2"
             "-Wformat-signedness"
             "-Wjump-misses-init"
