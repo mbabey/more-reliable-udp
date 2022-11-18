@@ -2,7 +2,7 @@
 #include "../include/client-util.h"
 #include "../include/setup.h"
 #include "../include/Game.h"
-#include "../include/Controller.h"
+//#include "../include/Controller.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -220,10 +220,10 @@ void cl_messaging(struct client_settings *set)
             uint8_t cursor; /* The position of the cursor. */
             bool btn; /* Whether the button has been pressed. */
             // input buffer: 1 B cursor, 1 B btn press
-            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
+//            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
             
-            input_buffer[0] = cursor;
-            input_buffer[1] = btn;
+//            input_buffer[0] = cursor;
+//            input_buffer[1] = btn;
             
             /* Send input to server. */
             create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
@@ -304,7 +304,6 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
     bool      go_ahead;
     int       num_timeouts;
     
-    memset(set->r_packet, 0, sizeof(struct packet));
     set->timeout->tv_sec = BASE_TIMEOUT;
     
     size_addr_in = sizeof(struct sockaddr_in);
@@ -357,15 +356,19 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
             num_timeouts = 0; /* Reset num_timeouts: a packet was received. */
     
             /* Check the seq num and all flags in the set of accepted flags against
-             * the seq num and flags in the packet_buffer.
-             * If either is invalid at any point, we have the wrong packet. */
+             * the seq num and flags in the packet_buffer. If one is valid, we have right packet.
+             * Otherwise, resend the last sent packet. */
             for (uint8_t i = 0; i < num_flags; ++i)
             {
-                if (!(go_ahead = *packet_buffer == flag_set[i] && *(packet_buffer + 1) == seq_num))
+                if ((go_ahead = *packet_buffer == flag_set[i] && *(packet_buffer + 1) == seq_num))
                 {
-                    cl_sendto(set);
                     break;
                 }
+            }
+            
+            if (!go_ahead)
+            {
+                cl_sendto(set);
             }
         }
     } while (!go_ahead);
