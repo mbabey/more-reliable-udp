@@ -432,7 +432,7 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
             sv_sendto(set, client);
         }
         if (!errno)
-        { disconnect_client(set, client) }
+        { disconnect_client(set, client); }
     }
     
     return true; /* Good message received: go ahead. */
