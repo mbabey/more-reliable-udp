@@ -4,8 +4,8 @@
 
 #include "../include/Game.h"
 #include "../include/manager.h"
-#include "../include/server.h"
 #include "../include/server-util.h"
+#include "../include/server.h"
 #include "../include/setup.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>

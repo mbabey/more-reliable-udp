@@ -3,8 +3,8 @@
 //
 
 #include "../include/manager.h"
-#include "../include/setup.h"
 #include "../include/Game.h"
+#include "../include/setup.h"
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>

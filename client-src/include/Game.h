@@ -6,6 +6,7 @@
 #define GAME_GAME_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define GAME_STATE_BYTES 9
 
@@ -26,7 +27,6 @@ struct Game
 //TODO: INITIALIZE STRUCT
 /**
  * Pointer to game to be initialized.
- * @param game Pointer to current game.
  */
 struct Game *initializeGame(void);
 
@@ -43,7 +43,6 @@ void displayBoardWithCursor(struct Game *game);
 //TODO: VALIDATE MOVE.
 /**
  * Takes in a cell location and updates board if valid.
- * @param move cell to update.
  * @param game Pointer to current game.
  * @return
  */
@@ -52,8 +51,7 @@ bool validateMove(struct Game *game);
 //TODO: UPDATE BOARD.
 /**
  * Updates a cell to a new character.
- * @param piece Piece to update to.
- * @param cell Location to update.
+ * @param game Pointer to current game.
  */
 void updateBoard(struct Game *game);
 
@@ -69,7 +67,7 @@ bool isGameOver(struct Game* game);
 /**
  * Update the cursor position for the horizontal value.
  * @param currentGame
- * @param newPosition
+ * @param joystickY
  */
 void updateCursorHorizontal(struct Game* currentGame, int joystickY);
 
