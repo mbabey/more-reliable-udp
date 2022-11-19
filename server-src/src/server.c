@@ -47,13 +47,13 @@ void open_server(struct server_settings *set);
 void await_connect(struct server_settings *set);
 
 /**
- * connect_to
+ * sv_comm_core
  * <p>
  * Create and zero the received packet and sent packet structs. Set the timeout option on the socket.
  * </p>
  * @param set - the server settings
  */
-void connect_to(struct server_settings *set);
+void sv_comm_core(struct server_settings *set);
 
 /**
  * handle_receipt
@@ -192,16 +192,14 @@ void await_connect(struct server_settings *set)
     
     while (running)
     {
-        printf("in select await_connect. running: %d", running);
-        connect_to(set);
+        sv_comm_core(set);
     }
 }
 
-void connect_to(struct server_settings *set)
+void sv_comm_core(struct server_settings *set)
 {
     fd_set readfds;
     int    max_fd;
-    // pthread_t cli_threads[MAX_CLIENTS]
     
     max_fd = set_readfds(set, &readfds);
     
@@ -213,7 +211,6 @@ void connect_to(struct server_settings *set)
         {
             case EINTR:
             {
-                printf("in select EINTR. running: %d", running);
                 // running set to 0 with signal handler.
                 return;
             }
@@ -227,7 +224,7 @@ void connect_to(struct server_settings *set)
     }
     
     handle_receipt(set, &readfds);
-    if (set->num_conn_client <= MAX_CLIENTS) /* If MAX_CLIENTS clients are connected, the game is running. */
+    if (set->num_conn_client == MAX_CLIENTS && !errno) /* If MAX_CLIENTS clients are connected, the game is running. */
     {
         handle_broadcast(set);
     }
@@ -521,7 +518,6 @@ static void set_signal_handling(struct sigaction *sa)
 static void signal_handler(int sig)
 {
     running = 0;
-    printf("in sig handler\n");
 }
 
 #pragma GCC diagnostic pop
