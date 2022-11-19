@@ -265,6 +265,8 @@ void handle_broadcast(struct server_settings *set)
         { sv_sendto(set, curr_cli); }
         if (!errno)
         { sv_recvfrom(set, curr_cli); }
+        
+        curr_cli = curr_cli->next;
     }
     
     set->mm->mm_free(set->mm, payload);
