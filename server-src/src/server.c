@@ -13,11 +13,6 @@
 #include <unistd.h>
 
 /**
- * The number of connections which may be queued at once. NOTE: server does not currently time out.
- */
-//#define MAX_TIMEOUTS_SERVER 3
-
-/**
  * The standard number of bytes in a payload; the size of the game data.
  * The game data is a uint8_t cursor, a char turn indicator, and a 9 B game state array.
  */
@@ -77,16 +72,6 @@ void handle_receipt(struct server_settings *set, fd_set *readfds);
  * @param set - the server settings
  */
 void handle_broadcast(struct server_settings *set);
-
-/**
- * assemble_game_payload
- * <p>
- * Allocate memory to store the game state information.
- * </p>
- * @param game - the game to store the state of
- * @return pointer to the memory storing the game state
- */
-uint8_t *assemble_game_payload(struct Game *game);
 
 /**
  * sv_accept
@@ -286,23 +271,6 @@ void handle_broadcast(struct server_settings *set)
     set->mm->mm_free(set->mm, payload);
 }
 
-uint8_t *assemble_game_payload(struct Game *game)
-{
-    uint8_t *payload;
-    
-    if ((payload = (uint8_t *) s_calloc(STD_PAYLOAD_BYTES, sizeof(uint8_t),
-                                        __FILE__, __func__, __LINE__)) == NULL)
-    {
-        return NULL;
-    }
-    
-    *payload       = game->cursor;
-    *(payload + 1) = game->turn;
-    memcpy(payload + 2, game->trackGame, sizeof(game->trackGame));
-    
-    return payload;
-}
-
 void sv_accept(struct server_settings *set)
 {
     struct sockaddr_in from_addr;
@@ -465,7 +433,7 @@ void sv_sendto(struct server_settings *set, struct conn_client *client)
     set->mm->mm_add(set->mm, packet_buffer);
     
     size_addr_in = sizeof(struct sockaddr_in);
-    packet_size  = PKT_STD_BYTES + client->s_packet->length;
+    packet_size  = STD_PKT_BYTES + client->s_packet->length;
     
     printf("\nSending packet:\n\tFlags: %s\n\tSequence Number: %d\n",
            check_flags(client->s_packet->flags), client->s_packet->seq_num);

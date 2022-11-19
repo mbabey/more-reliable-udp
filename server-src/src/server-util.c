@@ -321,29 +321,6 @@ void delete_conn_client(struct server_settings *set, struct conn_client *client)
     set->mm->mm_free(set->mm, client);
 }
 
-uint8_t modify_timeout(uint8_t timeout_count)
-{
-    switch (timeout_count)
-    {
-        case 0:
-        {
-            return SERVER_TIMEOUT_SHORT;
-        }
-        case 1:
-        {
-            return SERVER_TIMEOUT_MED;
-        }
-        case 2:
-        {
-            return SERVER_TIMEOUT_LONG;
-        }
-        default:
-        {
-            return SERVER_TIMEOUT_SHORT;
-        }
-    }
-}
-
 void deserialize_packet(struct packet *packet, const uint8_t *buffer)
 {
     size_t bytes_copied;
@@ -378,7 +355,7 @@ uint8_t *serialize_packet(struct packet *packet)
     size_t   bytes_copied;
     uint16_t n_packet_length;
     
-    packet_size = PKT_STD_BYTES + packet->length;
+    packet_size = STD_PKT_BYTES + packet->length;
     if ((buffer = (uint8_t *) s_malloc(packet_size, __FILE__, __func__, __LINE__)) == NULL)
     {
         return NULL;
@@ -411,6 +388,23 @@ void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16
     packet->seq_num = seq_num;
     packet->length  = len;
     packet->payload = payload;
+}
+
+uint8_t *assemble_game_payload(struct Game *game)
+{
+    uint8_t *payload;
+    
+    if ((payload = (uint8_t *) s_calloc(STD_PAYLOAD_BYTES, sizeof(uint8_t),
+                                        __FILE__, __func__, __LINE__)) == NULL)
+    {
+        return NULL;
+    }
+    
+    *payload       = game->cursor;
+    *(payload + 1) = game->turn;
+    memcpy(payload + 2, game->trackGame, sizeof(game->trackGame));
+    
+    return payload;
 }
 
 const char *check_flags(uint8_t flags)
@@ -448,6 +442,29 @@ const char *check_flags(uint8_t flags)
         default:
         {
             return "INVALID";
+        }
+    }
+}
+
+uint8_t modify_timeout(uint8_t timeout_count)
+{
+    switch (timeout_count)
+    {
+        case 0:
+        {
+            return SERVER_TIMEOUT_SHORT;
+        }
+        case 1:
+        {
+            return SERVER_TIMEOUT_MED;
+        }
+        case 2:
+        {
+            return SERVER_TIMEOUT_LONG;
+        }
+        default:
+        {
+            return SERVER_TIMEOUT_SHORT;
         }
     }
 }

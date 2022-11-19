@@ -44,12 +44,17 @@
 /**
  * The number of bytes of a packet before the payload is attached.
  */
-#define PKT_STD_BYTES 4
+#define STD_PKT_BYTES 4
 
 /**
  * The maximum number of clients that can communicate with the server at once.
  */
 #define MAX_CLIENTS 2
+
+/**
+ * The number of connections which may be queued at once. NOTE: server does not currently time out.
+ */
+//#define MAX_TIMEOUTS_SERVER 3
 
 /**
  * packet
@@ -237,15 +242,6 @@ void disconnect_client(struct server_settings *set, struct conn_client *client);
 void delete_conn_client(struct server_settings *set, struct conn_client *client);
 
 /**
- * modify_timeout
- * <p>
- * Change the timeout duration based on the number of timeouts that have occurred.
- * </p>
- * @return
- */
-uint8_t modify_timeout(uint8_t timeout_count);
-
-/**
  * deserialize_packet
  * <p>
  * Load the bytes of a buffer into the received packet struct fields.
@@ -279,6 +275,16 @@ uint8_t *serialize_packet(struct packet *packet);
 void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
 
 /**
+ * assemble_game_payload
+ * <p>
+ * Allocate memory to store the game state information.
+ * </p>
+ * @param game - the game to store the state of
+ * @return pointer to the memory storing the game state
+ */
+uint8_t *assemble_game_payload(struct Game *game);
+
+/**
  * check_flags
  * <p>
  * Check the input flags; return a string representation.
@@ -287,6 +293,15 @@ void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16
  * @return a string representation of the flags
  */
 const char *check_flags(uint8_t flags);
+
+/**
+ * modify_timeout
+ * <p>
+ * Change the timeout duration based on the number of timeouts that have occurred.
+ * </p>
+ * @return
+ */
+uint8_t modify_timeout(uint8_t timeout_count);
 
 /**
  * fatal_errno.
