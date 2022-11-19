@@ -4,6 +4,39 @@
 
 #include "../include/Controller.h"
 
+/**
+ * Bounds for registering analog channel outputs.
+ */
+#define ANALOG_V_LOWER_BOUND 10
+#define ANALOG_V_UPPER_BOUND 245
+
+/**
+ * Delay time for sampling analog signal (ms).
+ */
+#define ANALOG_INPUT_DELAY 150
+
+/**
+ * Clock period (mics).
+ */
+#define CLOCK_PERIOD 2
+
+/**
+ * Values to move cursor around the board.
+ */
+#define ROW_SHIFT 3
+#define COL_SHIFT 1
+
+/**
+ * Board boundaries to limit cursor movement.
+ */
+#define GRID_BOUNDARY_TOP_LEFT 0
+#define GRID_BOUNDARY_TOP_RIGHT 2
+#define GRID_BOUNDARY_MID_LEFT 3
+#define GRID_BOUNDARY_MID_RIGHT 5
+#define GRID_BOUNDARY_BOTTOM_LEFT 6
+#define GRID_BOUNDARY_BOTTOM_RIGHT 8
+
+
 // Initial set up for wiring.
 void controllerSetup(){
 
@@ -35,35 +68,35 @@ uchar get_ADC_Result(uint channel)
     digitalWrite(ADC_CS, 0);
     // Start bit
     digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,1);    delayMicroseconds(2);
-    digitalWrite(ADC_CLK,1);    delayMicroseconds(2);
+    digitalWrite(ADC_DIO,1);    delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
 //Single End mode
     digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,1);    delayMicroseconds(2);
-    digitalWrite(ADC_CLK,1);    delayMicroseconds(2);
+    digitalWrite(ADC_DIO,1);    delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
     // ODD
     digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,odd);  delayMicroseconds(2);
-    digitalWrite(ADC_CLK,1);    delayMicroseconds(2);
+    digitalWrite(ADC_DIO,odd);  delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
     //Select
     digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,sel);    delayMicroseconds(2);
+    digitalWrite(ADC_DIO,sel);    delayMicroseconds(CLOCK_PERIOD);
     digitalWrite(ADC_CLK,1);
-    digitalWrite(ADC_DIO,1);    delayMicroseconds(2);
+    digitalWrite(ADC_DIO,1);    delayMicroseconds(CLOCK_PERIOD);
     digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,1);    delayMicroseconds(2);
+    digitalWrite(ADC_DIO,1);    delayMicroseconds(CLOCK_PERIOD);
     for(i=0;i<8;i++)
     {
-        digitalWrite(ADC_CLK,1);    delayMicroseconds(2);
-        digitalWrite(ADC_CLK,0);    delayMicroseconds(2);
+        digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
+        digitalWrite(ADC_CLK,0);    delayMicroseconds(CLOCK_PERIOD);
         pinMode(ADC_DIO, INPUT);
         dat1=dat1<<1 | digitalRead(ADC_DIO);
     }
     for(i=0;i<8;i++)
     {
         dat2 = dat2 | ((uchar)(digitalRead(ADC_DIO))<<i);
-        digitalWrite(ADC_CLK,1);    delayMicroseconds(2);
-        digitalWrite(ADC_CLK,0);    delayMicroseconds(2);
+        digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
+        digitalWrite(ADC_CLK,0);    delayMicroseconds(CLOCK_PERIOD);
     }
     digitalWrite(ADC_CS,1);
     pinMode(ADC_DIO, OUTPUT);
@@ -96,47 +129,41 @@ int useController(int currentCursor, bool *btn){
         {
             lightSwitch(false);
             *btn = true;
-            delay(150);
+            delay(ANALOG_INPUT_DELAY);
             return tempCursor;
         }
 
-        delay(200);
+        delay(ANALOG_INPUT_DELAY);
     }
 
     // If just moved then just send position.
     lightSwitch(false);
-    return  tempCursor;
+    { return tempCursor; }
 }
 
 int adjustVertical(int joystickY, int currentCursor) {
-    int up = 0;
-    int down = 245;
-    int tempCursor = currentCursor;
+    int up = ANALOG_V_LOWER_BOUND;
+    int down = ANALOG_V_UPPER_BOUND;
 
-    if(joystickY == up && tempCursor - 3 >= 0)
-        return tempCursor - 3;
+    if(joystickY <= up && currentCursor - ROW_SHIFT >= GRID_BOUNDARY_TOP_LEFT)
+    { return currentCursor - ROW_SHIFT; }
 
-    else if(joystickY >= down && tempCursor + 3 <= 8)
-        return tempCursor + 3;
-
-    else
-        return tempCursor;
+    if(joystickY >= down && currentCursor + ROW_SHIFT <= GRID_BOUNDARY_BOTTOM_RIGHT)
+    { return currentCursor + ROW_SHIFT; }
+    
+    return currentCursor;
 }
 
 //TODO: NO MORE TELEPORTING EDGES GING LEFT AND RIGHT.
 int adjustHorizontal(int joystickX, int currentCursor) {
-    int left = 245;
-    int right = 0;
-    int tempCursor = currentCursor;
+    int left = ANALOG_V_UPPER_BOUND;
+    int right = ANALOG_V_LOWER_BOUND;
 
-    if(joystickX >= left && tempCursor - 1 >= 0 && tempCursor != 6 && tempCursor != 3)
-        return currentCursor - 1;
-
-    else if(joystickX == right && tempCursor + 1 <= 8 && tempCursor != 2 && tempCursor != 5)
-        return currentCursor + 1;
-
-    else
-        return tempCursor;
+    if(joystickX >= left && currentCursor - COL_SHIFT >= GRID_BOUNDARY_TOP_LEFT && currentCursor != GRID_BOUNDARY_MID_LEFT && currentCursor != GRID_BOUNDARY_BOTTOM_LEFT)
+    { return currentCursor - COL_SHIFT; }
+    
+    if(joystickX <= right && currentCursor + COL_SHIFT <= GRID_BOUNDARY_BOTTOM_RIGHT && currentCursor != GRID_BOUNDARY_TOP_RIGHT && currentCursor != GRID_BOUNDARY_MID_RIGHT)
+    { return currentCursor + COL_SHIFT; }
+    
+    return currentCursor;
 }
-
-

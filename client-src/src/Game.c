@@ -412,7 +412,6 @@ bool isGameOver(struct Game* game) {
         return true;
     }
 
-
     // Row 2.
     if(!isspace(game->trackGame[MIDDLE_LEFT]) && game->trackGame[MIDDLE_LEFT] == game->trackGame[MIDDLE] && game->trackGame[MIDDLE] == game->trackGame[MIDDLE_RIGHT]){
         game->turn = game->trackGame[MIDDLE_LEFT];
@@ -490,36 +489,6 @@ void updateBoard(struct Game* game) {
         game->trackGame[cell] = game->turn;
 
         // Alternate active player.
-
-        if(game->turn == 'X')
-        { game->turn = 'O'; }
-        else
-        { game->turn = 'X'; }
+        game->turn = (game->turn == 'X') ? 'O' : 'X';
     }
 }
-
-//void updateCursorVertical(struct Game *currentGame, int joystickX)
-//{
-//    int up         = 0;
-//    int down       = 245;
-//    int tempCursor = currentGame->cursor;
-//
-//    if (joystickX == up && tempCursor - 3 >= 0)
-//        currentGame->cursor -= 3;
-//
-//    else if (joystickX >= down && tempCursor + 3 <= 8)
-//        currentGame->cursor += 3;
-//}
-
-//void updateCursorHorizontal(struct Game *currentGame, int joystickY)
-//{
-//    int left       = 245;
-//    int right      = 0;
-//    int tempCursor = currentGame->cursor;
-//
-//    if (joystickY >= left && tempCursor - 1 >= 0)
-//        currentGame->cursor -= 1;
-//
-//    else if (joystickY == right && tempCursor + 1 <= 8)
-//        currentGame->cursor += 1;
-//}
