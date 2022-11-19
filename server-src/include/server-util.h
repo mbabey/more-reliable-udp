@@ -275,16 +275,6 @@ uint8_t *serialize_packet(struct packet *packet);
 void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload);
 
 /**
- * assemble_game_payload
- * <p>
- * Allocate memory to store the game state information.
- * </p>
- * @param game - the game to store the state of
- * @return pointer to the memory storing the game state
- */
-uint8_t *assemble_game_payload(struct Game *game);
-
-/**
  * check_flags
  * <p>
  * Check the input flags; return a string representation.

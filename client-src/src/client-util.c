@@ -25,6 +25,7 @@ char *check_ip(char *ip, uint8_t base)
     if (errno == ENOMEM)
     {
         fatal_errno(__FILE__, __func__, __LINE__, errno);
+        free(ip_cpy);
         return NULL;
     }
     

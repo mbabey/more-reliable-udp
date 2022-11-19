@@ -74,6 +74,16 @@ void handle_receipt(struct server_settings *set, fd_set *readfds);
 void handle_broadcast(struct server_settings *set);
 
 /**
+ * assemble_game_payload
+ * <p>
+ * Allocate memory to store the game state information.
+ * </p>
+ * @param game - the game to store the state of
+ * @return pointer to the memory storing the game state
+ */
+uint8_t *assemble_game_payload(struct Game *game);
+
+/**
  * sv_accept
  * <p>
  * Receive a message. If it is a SYN, connect the new client. Send a SYN/ACK back to the sender on that socket.
@@ -260,6 +270,23 @@ void handle_broadcast(struct server_settings *set)
     set->mm->mm_free(set->mm, payload);
 }
 
+uint8_t *assemble_game_payload(struct Game *game)
+{
+    uint8_t *payload;
+    
+    if ((payload = (uint8_t *) s_calloc(STD_PAYLOAD_BYTES, sizeof(uint8_t),
+                                        __FILE__, __func__, __LINE__)) == NULL)
+    {
+        return NULL;
+    }
+    
+    *payload       = game->cursor;
+    *(payload + 1) = game->turn;
+    memcpy(payload + 2, game->trackGame, sizeof(game->trackGame));
+    
+    return payload;
+}
+
 void sv_accept(struct server_settings *set)
 {
     struct sockaddr_in from_addr;
@@ -314,8 +341,6 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client)
     socklen_t size_addr_in;
     bool      go_ahead;
     
-    memset(client->r_packet, 0, sizeof(struct packet));
-    
     size_addr_in = sizeof(struct sockaddr_in);
     go_ahead     = false;
     do
@@ -353,12 +378,25 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
     printf("\nReceived packet:\n\tFlags: %s\n\tSequence Number: %d\n",
            check_flags(*packet_buffer), *(packet_buffer + 1));
     
-    /* If wrong ACK, can save some time by not deserializing. */
     if ((*packet_buffer == FLAG_ACK) &&
         (*(packet_buffer + 1) != client->s_packet->seq_num))
     {
         return false; /* Bad seq num: do not go ahead. */
-    } else if (*packet_buffer == FLAG_FIN)
+    } else if (*packet_buffer == (FLAG_FIN | FLAG_ACK))
+    {
+        disconnect_client(set, client);
+        return true; /* Client disconnected: go ahead. */
+    }
+    
+    deserialize_packet(client->r_packet, packet_buffer); /* Deserialize the packet to store its contents. */
+    if (errno == ENOMEM)
+    {
+        running = 0;
+        return true; /* Deserializing failure: go ahead. */
+    }
+    set->mm->mm_add(set->mm, client->r_packet->payload);
+    
+    if (*packet_buffer == FLAG_FIN)
     {
         create_packet(client->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
         sv_sendto(set, client);
@@ -368,31 +406,19 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
             sv_sendto(set, client);
         }
         if (!errno)
-        { sv_recvfrom(set, client); }
-    } else if (*packet_buffer == (FLAG_FIN | FLAG_ACK))
-    {
-        if (!errno)
-        { disconnect_client(set, client); }
+        { sv_recvfrom(set, client); } /* Wait for FIN/ACK */
     } else if ((*packet_buffer == FLAG_PSH) &&
             (*(packet_buffer + 1) != (uint8_t) (client->s_packet->seq_num + 1)))
     {
         create_packet(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
         sv_sendto(set, client);
         
-        deserialize_packet(client->r_packet, packet_buffer);
-        if (errno == ENOMEM)
-        {
-            running = 0;
-            return true; /* Deserializing failure: go ahead. */
-        }
-        set->mm->mm_add(set->mm, client->r_packet->payload);
-        
         set->game->cursor = *client->r_packet->payload;
         set->game->updateBoard(set->game);
-    
-        set->mm->mm_free(set->mm, client->r_packet->payload);
-        client->r_packet->payload = NULL;
     }
+    
+    set->mm->mm_free(set->mm, client->r_packet->payload);
+    client->r_packet->payload = NULL;
     
     return true; /* Good message received: go ahead. */
 }

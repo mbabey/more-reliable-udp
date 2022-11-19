@@ -392,23 +392,6 @@ void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16
     packet->payload = payload;
 }
 
-uint8_t *assemble_game_payload(struct Game *game)
-{
-    uint8_t *payload;
-    
-    if ((payload = (uint8_t *) s_calloc(STD_PAYLOAD_BYTES, sizeof(uint8_t),
-                                        __FILE__, __func__, __LINE__)) == NULL)
-    {
-        return NULL;
-    }
-    
-    *payload       = game->cursor;
-    *(payload + 1) = game->turn;
-    memcpy(payload + 2, game->trackGame, sizeof(game->trackGame));
-    
-    return payload;
-}
-
 const char *check_flags(uint8_t flags)
 {
     switch (flags)
