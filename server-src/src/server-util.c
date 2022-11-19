@@ -107,6 +107,28 @@ in_port_t parse_port(const char *buffer, uint8_t base)
     return port;
 }
 
+void set_string(char **str, const char *new_str)
+{
+    size_t buf = strlen(new_str) + 1;
+    
+    
+    if (!*str) // Double negative: true if the string is NULL
+    {
+        if ((*str = (char *) malloc(buf)) == NULL)
+        {
+            return;
+        }
+    } else
+    {
+        if ((*str = (char *) realloc(*str, buf)) == NULL)
+        {
+            return;
+        }
+    }
+    
+    strcpy(*str, new_str);
+}
+
 void set_self_ip(char **ip)
 {
     struct addrinfo hints;
@@ -203,8 +225,7 @@ struct conn_client *connect_client(struct server_settings *set, struct sockaddr_
     struct conn_client *new_client;
     
     /* Initialize storage for information about the new client. */
-    if ((new_client = create_conn_client(set)) ==
-        NULL) // TODO(maxwell): the client is never removed from the linked list.
+    if ((new_client = create_conn_client(set)) == NULL)
     {
         return NULL; // errno set
     }
@@ -259,15 +280,45 @@ struct conn_client *create_conn_client(struct server_settings *set)
     {
         struct conn_client *curr_node;
         
-        curr_node = set->first_conn_client;
-        while (curr_node->next != NULL)
-        {
-            curr_node = curr_node->next;
-        }
+        for (curr_node = set->first_conn_client; curr_node->next != NULL; curr_node = curr_node->next);
+        
         curr_node->next = new_client;
     }
     
     return new_client;
+}
+
+void disconnect_client(struct server_settings *set, struct conn_client *client)
+{
+    /* If the client being disconnected is the first connected client,
+     * set the first connected client to the second connected client. */
+    if (set->first_conn_client == client)
+    {
+        set->first_conn_client = set->first_conn_client->next;
+        delete_conn_client(set, client);
+    } else
+    {
+        struct conn_client *curr_cli;
+        
+        /* Iterate through the list until the disconnecting client is next in the list or until the end of the list. */
+        for (curr_cli = set->first_conn_client;
+             curr_cli->next != client && curr_cli->next != NULL; curr_cli = curr_cli->next);
+        
+        if (curr_cli->next == client) /* If the disconnecting client is in the list. */
+        {
+            curr_cli->next = curr_cli->next->next; /* A -> B -> C ==> A -> C */
+            delete_conn_client(set, client);
+        }
+    }
+}
+
+void delete_conn_client(struct server_settings *set, struct conn_client *client)
+{
+    --set->num_conn_client;
+    set->mm->mm_free(set->mm, client->r_packet);
+    set->mm->mm_free(set->mm, client->s_packet);
+    set->mm->mm_free(set->mm, client->addr);
+    set->mm->mm_free(set->mm, client);
 }
 
 uint8_t modify_timeout(uint8_t timeout_count)
@@ -292,8 +343,6 @@ uint8_t modify_timeout(uint8_t timeout_count)
         }
     }
 }
-
-
 
 void deserialize_packet(struct packet *packet, const uint8_t *buffer)
 {
@@ -352,28 +401,6 @@ uint8_t *serialize_packet(struct packet *packet)
     }
     
     return buffer;
-}
-
-void set_string(char **str, const char *new_str)
-{
-    size_t buf = strlen(new_str) + 1;
-    
-    
-    if (!*str) // Double negative: true if the string is NULL
-    {
-        if ((*str = (char *) malloc(buf)) == NULL)
-        {
-            return;
-        }
-    } else
-    {
-        if ((*str = (char *) realloc(*str, buf)) == NULL)
-        {
-            return;
-        }
-    }
-    
-    strcpy(*str, new_str);
 }
 
 void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)

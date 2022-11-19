@@ -71,6 +71,28 @@ char *check_ip(char *ip, uint8_t base)
     return ip;
 }
 
+void set_string(char **str, const char *new_str)
+{
+    size_t buf = strlen(new_str) + 1;
+    
+    
+    if (!*str) // Double negative: true if the string is NULL
+    {
+        if ((*str = (char *) malloc(buf)) == NULL)
+        {
+            return;
+        }
+    } else
+    {
+        if ((*str = (char *) realloc(*str, buf)) == NULL)
+        {
+            return;
+        }
+    }
+    
+    strcpy(*str, new_str);
+}
+
 in_port_t parse_port(const char *buffer, uint8_t base)
 {
     const char *msg = NULL;
@@ -159,28 +181,6 @@ uint8_t *serialize_packet(struct packet *packet)
     }
     
     return buffer;
-}
-
-void set_string(char **str, const char *new_str)
-{
-    size_t buf = strlen(new_str) + 1;
-    
-    
-    if (!*str) // Double negative: true if the string is NULL
-    {
-        if ((*str = (char *) malloc(buf)) == NULL)
-        {
-            return;
-        }
-    } else
-    {
-        if ((*str = (char *) realloc(*str, buf)) == NULL)
-        {
-            return;
-        }
-    }
-    
-    strcpy(*str, new_str);
 }
 
 void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16_t len, uint8_t *payload)

@@ -431,10 +431,13 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
             create_packet(client->s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
             sv_sendto(set, client);
         }
+        if (!errno)
+        { disconnect_client(set, client) }
     }
     
     return true; /* Good message received: go ahead. */
 }
+
 
 int decode_message(struct server_settings *set, struct packet *r_packet, const uint8_t *packet_buffer)
 {

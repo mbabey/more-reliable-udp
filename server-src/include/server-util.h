@@ -130,6 +130,25 @@ struct conn_client
 char *check_ip(char *ip, uint8_t base);
 
 /**
+ * set_string
+ * <p>
+ * Set a string to a value. If the string is NULL, will call malloc. If the string is not NULL, will call
+ * realloc.
+ * </p>
+ * <p>
+ * NOTE: Requires a dynamically allocated or NULL first parameter.
+ * </p>
+ * <p>
+ * <h3>
+ * WARNING: set_string dynamically allocates memory. Must free the pointer passed as the first parameter
+ * </h3>
+ * </p>
+ * @param str - char**: pointer to the string to be set
+ * @param new_str - char*: the new value for the string
+ */
+void set_string(char **str, const char *new_str);
+
+/**
  * parse_port
  * <p>
  * Check the user input port number to ensure it is within parameters. Namely, that it is not
@@ -198,6 +217,26 @@ struct conn_client *connect_client(struct server_settings *set, struct sockaddr_
 struct conn_client *create_conn_client(struct server_settings *set);
 
 /**
+ * disconnect_client
+ * <p>
+ * Remove a client from the connected client list. Free the client's memory.
+ * </p>
+ * @param set - the server settings
+ * @param client - the disconnecting client
+ */
+void disconnect_client(struct server_settings *set, struct conn_client *client);
+
+/**
+ * delete_conn_client
+ * <p>
+ * Free the memory associated with a client. Decrement the number of connected clients counter.
+ * </p>
+ * @param set - the server settings
+ * @param client - the client to free
+ */
+void delete_conn_client(struct server_settings *set, struct conn_client *client);
+
+/**
  * modify_timeout
  * <p>
  * Change the timeout duration based on the number of timeouts that have occurred.
@@ -225,25 +264,6 @@ void deserialize_packet(struct packet *packet, const uint8_t *buffer);
  * @return the buffer storing the packet info
  */
 uint8_t *serialize_packet(struct packet *packet);
-
-/**
- * set_string
- * <p>
- * Set a string to a value. If the string is NULL, will call malloc. If the string is not NULL, will call
- * realloc.
- * </p>
- * <p>
- * NOTE: Requires a dynamically allocated or NULL first parameter.
- * </p>
- * <p>
- * <h3>
- * WARNING: set_string dynamically allocates memory. Must free the pointer passed as the first parameter!
- * </h3>
- * </p>
- * @param str - char**: pointer to the string to be set
- * @param new_str - char*: the new value for the string
- */
-void set_string(char **str, const char *new_str);
 
 /**
  * create_packet
