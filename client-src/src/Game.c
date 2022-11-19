@@ -1,11 +1,37 @@
 //
 // Created by prabh on 11/6/22.
 //
-#include <stdlib.h>
-#include <stdio.h>
 #include "../include/Game.h"
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+/**
+* Board positions translated into array indices.
+*/
+#define TOP_LEFT 0
+#define TOP_MIDDLE 1
+#define TOP_RIGHT 2
+#define MIDDLE_LEFT 3
+#define MIDDLE 4
+#define MIDDLE_RIGHT 5
+#define BOTTOM_LEFT 6
+#define BOTTOM_MIDDLE 7
+#define BOTTOM_RIGHT 8
+
+/**
+ * Win state codes.
+ */
+#define TIE 0
+#define TOP_ROW 1
+#define MIDDLE_ROW 2
+#define BOTTOM_ROW 3
+#define DIAGONAL_LEFT 4
+#define DIAGONAL_RIGHT 5
+#define LEFT_COLUMN 6
+#define MIDDLE_COLUMN 7
+#define RIGHT_COLUMN 8
 
 /**
  * updateGameState
@@ -24,8 +50,13 @@ void updateGameState(struct Game *game,
 
 struct Game *initializeGame(void)
 {
+    struct Game* game;
+    
     // Make game object.
-    struct Game *game = malloc(sizeof(struct Game));
+    if((game = malloc(sizeof(struct Game))) == NULL)
+    {
+        return NULL;
+    }
     
     // All cells are empty to start.
     for (int i = 0; i < GAME_STATE_BYTES; i++)
@@ -37,7 +68,7 @@ struct Game *initializeGame(void)
     game->turn = 'X';
     
     // Start cursor in the center.
-    game->cursor = 4;
+    game->cursor = MIDDLE;
     
     game->updateGameState = updateGameState;
     
@@ -72,242 +103,237 @@ void updateGameState(struct Game *game,
     }
 }
 
-void refreshCommandLine()
-{
-    system("clear");
-}
-
 //TODO: CHANGE COLOR ON WIN OR LOSE.
 void displayBoardEnd(struct Game* game) {
-    refreshCommandLine();
+    system("clear");
     char red[] = "\033[0;31m";
     char green[] = "\033[1;32m";
     char endColor[] = "\033[0m";
-
+    
     // ROW 1
-    if(game->winCondition == 1) {
+    if(game->winCondition == TOP_ROW) {
         printf("     |     |     \n");
-        printf(" %s%c   |  %c  |  %c%s \n",green, game->trackGame[0], game->trackGame[1], game->trackGame[2], endColor);
+        printf(" %s%c   |  %c  |  %c%s \n",green, game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT], endColor);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
     }
 
     // ROW 2
-    else if(game->winCondition == 2) {
+    else if(game->winCondition == MIDDLE_ROW) {
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf(" %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %s%c  |  %c  |  %c%s \n", green, game->trackGame[3], game->trackGame[4], game->trackGame[5], endColor);
+        printf("  %s%c  |  %c  |  %c%s \n", green, game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT], endColor);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
     }
 
     // ROW 3
-    else if(game->winCondition == 3) {
+    else if(game->winCondition == BOTTOM_ROW) {
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf(" %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %s%c  |  %c  |  %c%s \n", green, game->trackGame[6], game->trackGame[7], game->trackGame[8], endColor);
+        printf("  %s%c  |  %c  |  %c%s \n", green, game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT], endColor);
         printf("     |     |     \n\n");
     }
 
     // DIAGONAL LEFT
-    else if(game->winCondition == 4) {
+    else if(game->winCondition == DIAGONAL_LEFT) {
         printf("     |     |     \n");
-        printf(" %s%c%s   |  %c  |  %c \n", green,game->trackGame[0],endColor, game->trackGame[1], game->trackGame[2]);
+        printf(" %s%c%s   |  %c  |  %c \n", green,game->trackGame[TOP_LEFT],endColor, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[3], green,game->trackGame[4],endColor, game->trackGame[5]);
+        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], green,game->trackGame[MIDDLE],endColor, game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[6], game->trackGame[7], green,game->trackGame[8], endColor);
+        printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], green,game->trackGame[BOTTOM_RIGHT], endColor);
         printf("     |     |     \n\n");
     }
 
     // DIAGONAL RIGHT
-    else if(game->winCondition == 5) {
+    else if(game->winCondition == DIAGONAL_RIGHT) {
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %s%c%s \n", game->trackGame[0], game->trackGame[1], green,game->trackGame[2],endColor);
+        printf(" %c   |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], green,game->trackGame[TOP_RIGHT],endColor);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[3], green,game->trackGame[4],endColor, game->trackGame[5]);
+        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], green,game->trackGame[MIDDLE],endColor, game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %s%c%s  |  %c  |  %c \n", green,game->trackGame[6],endColor, game->trackGame[7], game->trackGame[8]);
+        printf("  %s%c%s  |  %c  |  %c \n", green,game->trackGame[BOTTOM_LEFT],endColor, game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
     }
 
-    // COLUMN 1
-    else if(game->winCondition == 6) {
+    // COLUMN TOP_MIDDLE
+    else if(game->winCondition == LEFT_COLUMN) {
         printf("     |     |     \n");
-        printf(" %s%c%s   |  %c  |  %c \n", green,game->trackGame[0],endColor, game->trackGame[1], game->trackGame[2]);
+        printf(" %s%c%s   |  %c  |  %c \n", green,game->trackGame[TOP_LEFT],endColor, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %s%c%s  |  %c  |  %c \n", green,game->trackGame[3],endColor, game->trackGame[4], game->trackGame[5]);
+        printf("  %s%c%s  |  %c  |  %c \n", green,game->trackGame[MIDDLE_LEFT],endColor, game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %s%c%s  |  %c  |  %c \n", green,game->trackGame[6],endColor, game->trackGame[7], game->trackGame[8]);
+        printf("  %s%c%s  |  %c  |  %c \n", green,game->trackGame[BOTTOM_LEFT],endColor, game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
     }
 
-    // COLUMN 2
-    else if(game->winCondition == 7) {
+    // COLUMN TOP_RIGHT
+    else if(game->winCondition == MIDDLE_COLUMN) {
         printf("     |     |     \n");
-        printf(" %c   |  %s%c%s  |  %c \n", game->trackGame[0], green,game->trackGame[1],endColor, game->trackGame[2]);
+        printf(" %c   |  %s%c%s  |  %c \n", game->trackGame[TOP_LEFT], green,game->trackGame[TOP_MIDDLE],endColor, game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[3], green,game->trackGame[4],endColor, game->trackGame[5]);
+        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], green,game->trackGame[MIDDLE],endColor, game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[6], green,game->trackGame[7],endColor, game->trackGame[8]);
+        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[BOTTOM_LEFT], green,game->trackGame[BOTTOM_MIDDLE],endColor, game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
     }
 
-    // COLUMN 3
-    else if(game->winCondition == 8) {
+    // COLUMN MIDDLE_LEFT
+    else if(game->winCondition == RIGHT_COLUMN) {
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %s%c%s \n", game->trackGame[0], game->trackGame[1], green,game->trackGame[2],endColor);
+        printf(" %c   |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], green,game->trackGame[TOP_RIGHT],endColor);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[3], game->trackGame[4], green,game->trackGame[5],endColor);
+        printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], green,game->trackGame[MIDDLE_RIGHT],endColor);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[6], game->trackGame[7], green,game->trackGame[8],endColor);
+        printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], green,game->trackGame[BOTTOM_RIGHT],endColor);
         printf("     |     |     \n\n");
     }
 
     // NO WINNERS
     else {
-        printf(red);
+        printf("%s", red);
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf(" %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-        printf(endColor);
+        printf("%s", endColor);
     }
 }
 
 void displayBoardWithCursor(struct Game *game)
 {
-    refreshCommandLine();
+    system("clear");
     
     // TODO: CHECK IF WON, IF TIE, OR CONTINUE GAME CHANGE PRINT.
     
-    if (game->cursor == 0)
+    if (game->cursor == TOP_LEFT)
     {
         printf("     |     |     \n");
-        printf(" |%c| |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf(" |%c| |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == 1)
+    } else if (game->cursor == TOP_MIDDLE)
     {
         printf("     |     |     \n");
-        printf("  %c  | |%c| |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf("  %c  | |%c| |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == 2)
+    } else if (game->cursor == TOP_RIGHT)
     {
         printf("     |     |     \n");
-        printf("  %c  |  %c  | |%c|\n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf("  %c  |  %c  | |%c|\n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == 3)
+    } else if (game->cursor == MIDDLE_LEFT)
     {
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf(" |%c| |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf(" |%c| |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == 4)
+    } else if (game->cursor == MIDDLE)
     {
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  | |%c| |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  | |%c| |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == 5)
+    } else if (game->cursor == MIDDLE_LEFT)
     {
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  | |%c|\n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  | |%c|\n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == 6)
+    } else if (game->cursor == BOTTOM_LEFT)
     {
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf(" |%c| |  %c  |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf(" |%c| |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == 7)
+    } else if (game->cursor == BOTTOM_MIDDLE)
     {
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  | |%c| |  %c \n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  | |%c| |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == 8)
+    } else if (game->cursor == BOTTOM_RIGHT)
     {
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[0], game->trackGame[1], game->trackGame[2]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  |  %c \n", game->trackGame[3], game->trackGame[4], game->trackGame[5]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %c  |  %c  | |%c|\n", game->trackGame[6], game->trackGame[7], game->trackGame[8]);
+        printf("  %c  |  %c  | |%c|\n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
     }
 
@@ -353,7 +379,7 @@ void displayDetails(struct Game* game) {
  */
 bool isGridFull(struct Game *game)
 {
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < GAME_STATE_BYTES; i++)
     {
         if (isspace(game->trackGame[i]))
             return false;
@@ -365,66 +391,66 @@ bool isGridFull(struct Game *game)
 bool isGameOver(struct Game* game) {
 
     // Row 1.
-    if(!isspace(game->trackGame[0]) && game->trackGame[0] == game->trackGame[1] && game->trackGame[1] == game->trackGame[2]) {
-        game->turn = game->trackGame[0];
-        game->winCondition = 1;
+    if(!isspace(game->trackGame[TOP_LEFT]) && game->trackGame[TOP_LEFT] == game->trackGame[TOP_MIDDLE] && game->trackGame[TOP_MIDDLE] == game->trackGame[TOP_RIGHT]) {
+        game->turn = game->trackGame[TOP_LEFT];
+        game->winCondition = TOP_ROW;
         return true;
     }
 
 
     // Row 2.
-    else if(!isspace(game->trackGame[3]) && game->trackGame[3] == game->trackGame[4] && game->trackGame[4] == game->trackGame[5]){
-        game->turn = game->trackGame[3];
-        game->winCondition = 2;
+    else if(!isspace(game->trackGame[MIDDLE_LEFT]) && game->trackGame[MIDDLE_LEFT] == game->trackGame[MIDDLE] && game->trackGame[MIDDLE] == game->trackGame[MIDDLE_RIGHT]){
+        game->turn = game->trackGame[MIDDLE_LEFT];
+        game->winCondition = MIDDLE_ROW;
         return true;
     }
 
     // Row 3.
-    else if(!isspace(game->trackGame[6]) && game->trackGame[6] == game->trackGame[7] && game->trackGame[7] == game->trackGame[8]){
-        game->turn = game->trackGame[6];
-        game->winCondition = 3;
+    else if(!isspace(game->trackGame[BOTTOM_LEFT]) && game->trackGame[BOTTOM_LEFT] == game->trackGame[BOTTOM_MIDDLE] && game->trackGame[BOTTOM_MIDDLE] == game->trackGame[BOTTOM_RIGHT]){
+        game->turn = game->trackGame[BOTTOM_LEFT];
+        game->winCondition = BOTTOM_ROW;
         return true;
     }
 
     // Diagonal left.
-    else if(!isspace(game->trackGame[0]) && game->trackGame[0] == game->trackGame[4] && game->trackGame[4] == game->trackGame[8]){
-        game->turn = game->trackGame[0];
-        game->winCondition = 4;
+    else if(!isspace(game->trackGame[TOP_LEFT]) && game->trackGame[TOP_LEFT] == game->trackGame[MIDDLE] && game->trackGame[MIDDLE] == game->trackGame[BOTTOM_RIGHT]){
+        game->turn = game->trackGame[TOP_LEFT];
+        game->winCondition = DIAGONAL_LEFT;
         return true;
     }
 
     // Diagonal right.
-    else if(!isspace(game->trackGame[2]) && game->trackGame[2] == game->trackGame[4] && game->trackGame[4] == game->trackGame[6]){
-        game->turn = game->trackGame[2];
-        game->winCondition = 5;
+    else if(!isspace(game->trackGame[TOP_RIGHT]) && game->trackGame[TOP_RIGHT] == game->trackGame[MIDDLE] && game->trackGame[MIDDLE] == game->trackGame[BOTTOM_LEFT]){
+        game->turn = game->trackGame[TOP_RIGHT];
+        game->winCondition = DIAGONAL_RIGHT;
         return true;
     }
 
     // Column 1.
-    else if(!isspace(game->trackGame[0]) && game->trackGame[0] == game->trackGame[3] && game->trackGame[3] == game->trackGame[6]){
-        game->turn = game->trackGame[0];
-        game->winCondition = 6;
+    else if(!isspace(game->trackGame[TOP_LEFT]) && game->trackGame[TOP_LEFT] == game->trackGame[MIDDLE_LEFT] && game->trackGame[MIDDLE_LEFT] == game->trackGame[BOTTOM_LEFT]){
+        game->turn = game->trackGame[TOP_LEFT];
+        game->winCondition = LEFT_COLUMN;
         return true;
     }
 
     // Column 2.
-    else if(!isspace(game->trackGame[1]) && game->trackGame[1] == game->trackGame[4] && game->trackGame[4] == game->trackGame[7]){
-        game->turn = game->trackGame[1];
-        game->winCondition = 7;
+    else if(!isspace(game->trackGame[TOP_MIDDLE]) && game->trackGame[TOP_MIDDLE] == game->trackGame[MIDDLE] && game->trackGame[MIDDLE] == game->trackGame[BOTTOM_MIDDLE]){
+        game->turn = game->trackGame[TOP_MIDDLE];
+        game->winCondition = MIDDLE_COLUMN;
         return true;
     }
 
     // Column 3.
-    else if(!isspace(game->trackGame[2]) && game->trackGame[2] == game->trackGame[5] && game->trackGame[5] == game->trackGame[8]){
-        game->turn = game->trackGame[2];
-        game->winCondition = 8;
+    else if(!isspace(game->trackGame[TOP_RIGHT]) && game->trackGame[TOP_RIGHT] == game->trackGame[MIDDLE_RIGHT] && game->trackGame[MIDDLE_RIGHT] == game->trackGame[BOTTOM_RIGHT]){
+        game->turn = game->trackGame[TOP_RIGHT];
+        game->winCondition = RIGHT_COLUMN;
         return true;
     }
 
     // Check if tie and game should end.
     else if(isGridFull(game)){
         game->turn = ' ';
-        game->winCondition = 0;
+        game->winCondition = TIE; /* Not really a tie. */
         return true;
     }
 

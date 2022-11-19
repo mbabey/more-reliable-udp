@@ -6,7 +6,6 @@
 #define GAME_GAME_H
 
 #include <stdbool.h>
-#include <stdint.h>
 
 #define GAME_STATE_BYTES 9
 
@@ -59,11 +58,6 @@ bool validateMove(struct Game *game);
 void updateBoard(struct Game *game);
 
 //TODO: GET BOARD.
-/**
- * Clears terminal for board to display.
- */
-void refreshCommandLine();
-
 //TODO: CHECK IF THERE IS A WIN
 /**
  * Check board if win condition is met or board is full.
