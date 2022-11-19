@@ -96,17 +96,6 @@ void sv_accept(struct server_settings *set);
 void sv_recvfrom(struct server_settings *set, struct conn_client *client);
 
 /**
- * decode_message.
- * <p>
- * Load the bytes of the data buffer into the sv_recvfrom packet struct fields.
- * </p>
- * @param set - the server settings
- * @param packet_buffer - the data buffer to load into the received packet
- * @param r_packet - the packet struct to sv_recvfrom
- */
-int decode_message(struct server_settings *set, struct packet *r_packet, const uint8_t *packet_buffer);
-
-/**
  * sv_process
  * <p>
  * Check the flags in the packet struct. Depending on the flags, respond accordingly.
@@ -364,33 +353,12 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
     printf("\nReceived packet:\n\tFlags: %s\n\tSequence Number: %d\n",
            check_flags(*packet_buffer), *(packet_buffer + 1));
     
-    /* If wrong ACK, can save some time by not decoding. */
+    /* If wrong ACK, can save some time by not deserializing. */
     if ((*packet_buffer == FLAG_ACK) &&
         (*(packet_buffer + 1) != client->s_packet->seq_num))
     {
         return false; /* Bad seq num: do not go ahead. */
-    }
-    
-    if (decode_message(set, client->r_packet, packet_buffer) == -1)
-    {
-        running = 0;
-        return true; /* Decoding failure: go ahead. */
-    }
-    
-    if ((client->r_packet->flags & FLAG_PSH) &&
-        (client->r_packet->seq_num == (uint8_t) (client->s_packet->seq_num + 1))) // cracked cast
-    {
-        create_packet(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
-        sv_sendto(set, client);
-        
-        set->game->cursor = *client->r_packet->payload; /* We will only need to know the cursor position of the client. */
-        
-        set->game->updateBoard(set->game);
-        
-        set->mm->mm_free(set->mm, client->r_packet->payload);
-        client->r_packet->payload = NULL;
-        
-    } else if (client->r_packet->flags == FLAG_FIN)
+    } else if (*packet_buffer == FLAG_FIN)
     {
         create_packet(client->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
         sv_sendto(set, client);
@@ -400,23 +368,33 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
             sv_sendto(set, client);
         }
         if (!errno)
+        { sv_recvfrom(set, client); }
+    } else if (*packet_buffer == (FLAG_FIN | FLAG_ACK))
+    {
+        if (!errno)
         { disconnect_client(set, client); }
+    } else if ((*packet_buffer == FLAG_PSH) &&
+            (*(packet_buffer + 1) != (uint8_t) (client->s_packet->seq_num + 1)))
+    {
+        create_packet(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
+        sv_sendto(set, client);
+        
+        deserialize_packet(client->r_packet, packet_buffer);
+        if (errno == ENOMEM)
+        {
+            running = 0;
+            return true; /* Deserializing failure: go ahead. */
+        }
+        set->mm->mm_add(set->mm, client->r_packet->payload);
+        
+        set->game->cursor = *client->r_packet->payload;
+        set->game->updateBoard(set->game);
+    
+        set->mm->mm_free(set->mm, client->r_packet->payload);
+        client->r_packet->payload = NULL;
     }
     
     return true; /* Good message received: go ahead. */
-}
-
-
-int decode_message(struct server_settings *set, struct packet *r_packet, const uint8_t *packet_buffer)
-{
-    deserialize_packet(r_packet, packet_buffer);
-    if (errno == ENOMEM)
-    {
-        return -1;
-    }
-    set->mm->mm_add(set->mm, r_packet->payload);
-    
-    return 0;
 }
 
 void sv_sendto(struct server_settings *set, struct conn_client *client)
