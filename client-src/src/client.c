@@ -1,8 +1,8 @@
-#include "../include/client.h"
-#include "../include/client-util.h"
-#include "../include/setup.h"
-#include "../include/Game.h"
 //#include "../include/Controller.h"
+#include "../include/Game.h"
+#include "../include/client-util.h"
+#include "../include/client.h"
+#include "../include/setup.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <signal.h>
