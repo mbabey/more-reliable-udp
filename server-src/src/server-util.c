@@ -315,6 +315,7 @@ void disconnect_client(struct server_settings *set, struct conn_client *client)
 void delete_conn_client(struct server_settings *set, struct conn_client *client)
 {
     --set->num_conn_client;
+    close(client->c_fd);
     set->mm->mm_free(set->mm, client->r_packet->payload);
     set->mm->mm_free(set->mm, client->r_packet);
     set->mm->mm_free(set->mm, client->s_packet);

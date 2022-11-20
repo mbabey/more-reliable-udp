@@ -176,8 +176,6 @@ void cl_connect(struct client_settings *set)
 {
     memset(set->s_packet, 0, sizeof(struct packet));
     
-    printf("\nConnecting to server %s:%u\n", set->server_ip, set->server_port);
-    
     create_packet(set->s_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     cl_sendto(set);
     if (!errno)
@@ -185,6 +183,10 @@ void cl_connect(struct client_settings *set)
         uint8_t flag_set[] = {FLAG_SYN | FLAG_ACK};
         cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
+    
+    printf("\nConnected to server %s:%u\n",
+           inet_ntoa(set->server_addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+           ntohs(set->server_addr->sin_port));
     
     create_packet(set->s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
     if (!errno)
@@ -291,8 +293,11 @@ void cl_sendto(struct client_settings *set)
         return;
     }
     
-    printf("\nSent packet:\n\tFlags: %s\n\tSequence number: %d\n\n",
-           check_flags(set->s_packet->flags), set->s_packet->seq_num);
+    printf("\nSending packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
+           inet_ntoa(set->server_addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+           ntohs(set->server_addr->sin_port),
+           check_flags(set->s_packet->flags),
+           set->s_packet->seq_num);
     
     set->mm->mm_free(set->mm, packet_buffer);
 }
@@ -311,11 +316,12 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
     num_timeouts = 0;
     do
     {
-        printf("\n");
+        printf("\nAwaiting packet with flags: ");
         for (uint8_t i = 0; i < num_flags; ++i)
         {
-            printf("Awaiting response with flags: %s\n", check_flags(flag_set[i]));
+            printf( "%s, ", check_flags(flag_set[i]));
         }
+        printf("\n");
         
         /* Update socket's timeout. */
 //        if (setsockopt(set->server_fd,
@@ -409,8 +415,11 @@ int handle_timeout(struct client_settings *set, int num_timeouts) // TODO(maxwel
 
 void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
 {
-    printf("\nReceived response:\n\tFlags: %s\n\tSequence number: %d\n",
-           check_flags(*packet_buffer), *(packet_buffer + 1));
+    printf("\nReceived packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
+           inet_ntoa(set->server_addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+           ntohs(set->server_addr->sin_port),
+           check_flags(*packet_buffer),
+           *(packet_buffer + 1));
     
     deserialize_packet(set->r_packet, packet_buffer);
     if (errno == ENOMEM)

@@ -258,8 +258,8 @@ void handle_broadcast(struct server_settings *set)
         if (!errno)
         {
             uint8_t flags = (cli_num == set->game->turn % MAX_CLIENTS) ? (FLAG_PSH | FLAG_TRN) : FLAG_PSH;
-            create_packet(curr_cli->s_packet, flags, (uint8_t) (curr_cli->r_packet->seq_num + 1), STD_PAYLOAD_BYTES,
-                          payload);
+            create_packet(curr_cli->s_packet, flags, (uint8_t) (curr_cli->r_packet->seq_num + 1),
+                          STD_PAYLOAD_BYTES, payload);
         }
         if (!errno)
         { sv_sendto(set, curr_cli); }
@@ -377,8 +377,11 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client)
 
 bool sv_process(struct server_settings *set, struct conn_client *client, const uint8_t *packet_buffer)
 {
-    printf("\nReceived packet:\n\tFlags: %s\n\tSequence Number: %d\n",
-           check_flags(*packet_buffer), *(packet_buffer + 1));
+    printf("\nReceived packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
+           inet_ntoa(client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+           ntohs(client->addr->sin_port),
+           check_flags(*packet_buffer),
+           *(packet_buffer + 1));
     
     if ((*packet_buffer == FLAG_ACK) &&
         (*(packet_buffer + 1) != client->s_packet->seq_num))
@@ -409,8 +412,8 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
         }
         if (!errno)
         { sv_recvfrom(set, client); } /* Wait for FIN/ACK */
-    } else if ((*packet_buffer == FLAG_PSH) &&
-            (*(packet_buffer + 1) != (uint8_t) (client->s_packet->seq_num + 1)))
+    } else if ((*packet_buffer & FLAG_PSH) &&
+            (*(packet_buffer + 1) == (uint8_t) (client->s_packet->seq_num + 1)))
     {
         create_packet(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
         sv_sendto(set, client);
@@ -441,18 +444,17 @@ void sv_sendto(struct server_settings *set, struct conn_client *client)
     size_addr_in = sizeof(struct sockaddr_in);
     packet_size  = STD_PKT_BYTES + client->s_packet->length;
     
-    printf("\nSending packet:\n\tFlags: %s\n\tSequence Number: %d\n",
-           check_flags(client->s_packet->flags), client->s_packet->seq_num);
+    printf("\nSending packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
+           inet_ntoa(client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+           ntohs(client->addr->sin_port),
+           check_flags(client->s_packet->flags),
+           client->s_packet->seq_num);
     
     if (sendto(client->c_fd, packet_buffer, packet_size, 0, (struct sockaddr *) client->addr, size_addr_in) == -1)
     {
         perror("\nMessage transmission to client failed: \n");
         return;
     }
-    
-    printf("\nSending to: %s:%u\n",
-           inet_ntoa(client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
-           ntohs(client->addr->sin_port));
     
     set->mm->mm_free(set->mm, packet_buffer);
 }
