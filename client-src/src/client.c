@@ -421,6 +421,11 @@ void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
            check_flags(*packet_buffer),
            *(packet_buffer + 1));
     
+    if (*packet_buffer == FLAG_ACK)
+    {
+        return;
+    }
+    
     deserialize_packet(set->r_packet, packet_buffer);
     if (errno == ENOMEM)
     {
