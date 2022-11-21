@@ -223,7 +223,7 @@ void cl_messaging(struct client_settings *set)
             bool btn; /* Whether the button has been pressed. */
             // input buffer: 1 B cursor, 1 B btn press
 //            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
-            
+//
 //            input_buffer[0] = cursor;
 //            input_buffer[1] = btn;
             

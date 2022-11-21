@@ -419,7 +419,10 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
         sv_sendto(set, client);
         
         set->game->cursor = *client->r_packet->payload;
-        set->game->updateBoard(set->game);
+        if (*(client->r_packet->payload + 1))
+        {
+            set->game->updateBoard(set->game);
+        }
     }
     
     set->mm->mm_free(set->mm, client->r_packet->payload);
