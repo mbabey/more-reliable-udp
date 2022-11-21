@@ -32,7 +32,7 @@ void lightSwitch(bool state);
 /**
  * The setup needed for controller wiring.
  */
-void controllerSetup();
+int controllerSetup(void);
 
 /**
  * Main funciton for getting directions.

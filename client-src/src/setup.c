@@ -1,5 +1,6 @@
-#include "../include/client-util.h"
+#include "../include/Controller.h"
 #include "../include/Game.h"
+#include "../include/client-util.h"
 #include "../include/setup.h"
 #include <string.h>
 #include <sys/time.h>
@@ -55,6 +56,13 @@ void set_client_defaults(struct client_settings *set)
     memset(set, 0, sizeof(struct client_settings));
     set->server_port = DEFAULT_PORT;
     set->turn        = false;
+    
+    if ((controllerSetup()) == -1)
+    {
+        exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
+    }
+    
+    errno = 0; /* errno set in controllerSetup, but it does not matter; clean it. */
     
     if (allocate_defaults(set) == -1)
     {
