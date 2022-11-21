@@ -160,10 +160,28 @@ void run(int argc, char *argv[], struct server_settings *set)
 
 void open_server(struct server_settings *set)
 {
-    if ((set->server_fd = open_server_socket(set->server_ip, set->server_port)) == -1)
+    struct sockaddr_in addr;
+    
+    if ((set->server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
     {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
         return;
     }
+    
+    addr.sin_family           = AF_INET;
+    addr.sin_port             = htons(set->server_port);
+    if ((addr.sin_addr.s_addr = inet_addr(set->server_ip)) == (in_addr_t) -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return;
+    }
+    
+    if (bind(set->server_fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) == -1)
+    {
+        fatal_errno(__FILE__, __func__, __LINE__, errno);
+        return;
+    }
+    
     printf("\nServer running on %s:%d\n", set->server_ip, set->server_port);
 }
 

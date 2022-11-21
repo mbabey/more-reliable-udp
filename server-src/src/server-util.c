@@ -188,12 +188,7 @@ int open_server_socket(char *ip, in_port_t port)
         fatal_errno(__FILE__, __func__, __LINE__, errno);
         return -1;
     }
-    
-    if (bind(fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) == -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        return -1;
-    }
+
     return fd;
 }
 
