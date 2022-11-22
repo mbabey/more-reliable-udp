@@ -93,6 +93,8 @@ struct Game *initializeGame(void)
     
     game->displayBoardWithCursor = displayBoardWithCursor;
     
+    game->isGameOver = isGameOver;
+    
     return game;
 }
 

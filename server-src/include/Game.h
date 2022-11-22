@@ -22,6 +22,8 @@ struct Game
     void (*updateBoard)(struct Game *);
     
     void (*displayBoardWithCursor)(struct Game *);
+    
+    bool (*isGameOver)(struct Game *);
 };
 
 //TODO: INITIALIZE STRUCT

@@ -1,5 +1,5 @@
 //#include "../include/Controller.h"
-#include "../include/Game.h"
+#include "../../server-src/include/Game.h"
 #include "../include/client-util.h"
 #include "../include/client.h"
 #include "../include/setup.h"
@@ -443,6 +443,11 @@ void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
     {
         set->game->updateGameState(set->game, set->r_packet->payload, (char *) set->r_packet->payload + 1, set->r_packet->payload + 2);
         set->game->displayBoardWithCursor(set->game);
+        if (set->game->isGameOver(set->game))
+        {
+            running = 0;
+            set->turn = false;
+        }
     }
     
     set->mm->mm_free(set->mm, set->r_packet->payload);

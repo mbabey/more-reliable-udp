@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <softPwm.h>
 #include <stdbool.h>
-#include "Game.h"
+#include "../../server-src/include/Game.h"
 
 typedef unsigned char uchar;
 typedef unsigned int uint;
