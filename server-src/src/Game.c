@@ -1,7 +1,7 @@
 //
 // Created by prabh on 11/6/22.
 //
-#include "../include/Game.h"
+#include "../../client-src/include/Game.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,7 +130,7 @@ void displayBoardEnd(struct Game* game) {
     // ROW 1
     if(game->winCondition == TOP_ROW) {
         printf("     |     |     \n");
-        printf(" %s%c   |  %c  |  %c%s \n",GREEN, game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT], TEXT_DEF);
+        printf("  %s%c   |  %c  |  %c%s \n",GREEN, game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT], TEXT_DEF);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
@@ -143,7 +143,7 @@ void displayBoardEnd(struct Game* game) {
     // ROW 2
     else if(game->winCondition == MIDDLE_ROW) {
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %s%c  |  %c  |  %c%s \n", GREEN, game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT], TEXT_DEF);
@@ -156,7 +156,7 @@ void displayBoardEnd(struct Game* game) {
     // ROW 3
     else if(game->winCondition == BOTTOM_ROW) {
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
@@ -169,7 +169,7 @@ void displayBoardEnd(struct Game* game) {
     // DIAGONAL LEFT
     else if(game->winCondition == DIAGONAL_LEFT) {
         printf("     |     |     \n");
-        printf(" %s%c%s   |  %c  |  %c \n", GREEN,game->trackGame[TOP_LEFT],TEXT_DEF, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %s%c%s   |  %c  |  %c \n", GREEN,game->trackGame[TOP_LEFT],TEXT_DEF, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], GREEN,game->trackGame[MIDDLE],TEXT_DEF, game->trackGame[MIDDLE_RIGHT]);
@@ -182,7 +182,7 @@ void displayBoardEnd(struct Game* game) {
     // DIAGONAL RIGHT
     else if(game->winCondition == DIAGONAL_RIGHT) {
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], GREEN,game->trackGame[TOP_RIGHT],TEXT_DEF);
+        printf("  %c   |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], GREEN,game->trackGame[TOP_RIGHT],TEXT_DEF);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], GREEN,game->trackGame[MIDDLE],TEXT_DEF, game->trackGame[MIDDLE_RIGHT]);
@@ -195,7 +195,7 @@ void displayBoardEnd(struct Game* game) {
     // COLUMN 1
     else if(game->winCondition == LEFT_COLUMN) {
         printf("     |     |     \n");
-        printf(" %s%c%s   |  %c  |  %c \n", GREEN,game->trackGame[TOP_LEFT],TEXT_DEF, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %s%c%s   |  %c  |  %c \n", GREEN,game->trackGame[TOP_LEFT],TEXT_DEF, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %s%c%s  |  %c  |  %c \n", GREEN,game->trackGame[MIDDLE_LEFT],TEXT_DEF, game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
@@ -208,7 +208,7 @@ void displayBoardEnd(struct Game* game) {
     // COLUMN 2
     else if(game->winCondition == MIDDLE_COLUMN) {
         printf("     |     |     \n");
-        printf(" %c   |  %s%c%s  |  %c \n", game->trackGame[TOP_LEFT], GREEN,game->trackGame[TOP_MIDDLE],TEXT_DEF, game->trackGame[TOP_RIGHT]);
+        printf("  %c   |  %s%c%s  |  %c \n", game->trackGame[TOP_LEFT], GREEN,game->trackGame[TOP_MIDDLE],TEXT_DEF, game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], GREEN,game->trackGame[MIDDLE],TEXT_DEF, game->trackGame[MIDDLE_RIGHT]);
@@ -221,7 +221,7 @@ void displayBoardEnd(struct Game* game) {
     // COLUMN 3
     else if(game->winCondition == RIGHT_COLUMN) {
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], GREEN,game->trackGame[TOP_RIGHT],TEXT_DEF);
+        printf("  %c   |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], GREEN,game->trackGame[TOP_RIGHT],TEXT_DEF);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], GREEN,game->trackGame[MIDDLE_RIGHT],TEXT_DEF);
@@ -235,7 +235,7 @@ void displayBoardEnd(struct Game* game) {
     else {
         printf("%s", RED);
         printf("     |     |     \n");
-        printf(" %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
