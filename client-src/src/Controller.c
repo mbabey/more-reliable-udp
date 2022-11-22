@@ -51,7 +51,6 @@ int controllerSetup(void){
 
     if(wiringPiSetup() == -1){ //when initialize wiring failed,print messageto screen
         printf("setup wiringPi failed !");
-        //TODO: ADD ERROR HANDLING HERE.
         return -1;
     }
 
@@ -164,7 +163,6 @@ int adjustVertical(int joystickY, int currentCursor) {
     return currentCursor;
 }
 
-//TODO: NO MORE TELEPORTING EDGES GING LEFT AND RIGHT.
 int adjustHorizontal(int joystickX, int currentCursor) {
     int left = ANALOG_V_UPPER_BOUND;
     int right = ANALOG_V_LOWER_BOUND;

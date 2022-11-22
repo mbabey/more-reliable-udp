@@ -192,7 +192,7 @@ void cl_connect(struct client_settings *set)
     { cl_sendto(set); }
 }
 
-void cl_messaging(struct client_settings *set)
+void cl_messaging(struct client_settings *set) //
 {
     struct sigaction sa;
     uint8_t          input_buffer[GAME_SEND_BYTES];
@@ -239,7 +239,7 @@ void cl_messaging(struct client_settings *set)
         }
     }
     
-    if (!errno)
+    if (!errno || errno == EINTR) // TODO: handle client disconnecting midgame
     { cl_disconnect(set); }
 }
 
