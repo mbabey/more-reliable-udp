@@ -156,7 +156,6 @@ void open_client_socket(struct client_settings *set)
     }
     set->mm->mm_add(set->mm, set->server_addr);
     
-    
     set->server_addr->sin_family           = AF_INET;
     set->server_addr->sin_port             = htons(set->server_port);
     if ((set->server_addr->sin_addr.s_addr = inet_addr(set->server_ip)) == (in_addr_t) -1)
@@ -421,7 +420,7 @@ void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
            check_flags(*packet_buffer),
            *(packet_buffer + 1));
     
-    if (*packet_buffer == FLAG_ACK)
+    if (*packet_buffer == FLAG_ACK || *packet_buffer & FLAG_FIN)
     {
         return;
     }
