@@ -112,14 +112,13 @@ void lightSwitch(bool state) {
 }
 
 
-int useController(int currentCursor, bool *btn){
+int useController(int currentCursor, volatile bool *btn){
     int tempCursor = currentCursor;
-    bool antiButton = !*btn;
     
     lightSwitch(true);
 
     // While no movement.
-    while(tempCursor == currentCursor && *btn != antiButton) {
+    while(tempCursor == currentCursor) {
 
         // adjust analog input and make it game equivalent.
         tempCursor = adjustHorizontal(get_ADC_Result(1), tempCursor);

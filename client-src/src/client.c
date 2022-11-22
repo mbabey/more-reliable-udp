@@ -1,5 +1,5 @@
-//#include "../include/Controller.h"
-#include "../../server-src/include/Game.h"
+#include "../include/Controller.h"
+#include "../include/Game.h"
 #include "../include/client-util.h"
 #include "../include/client.h"
 #include "../include/setup.h"

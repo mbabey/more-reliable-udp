@@ -47,7 +47,7 @@ uchar get_ADC_Result(uint channel);
  * @param btn
  * @return
  */
-int useController(int cursorCurrent, bool* btn);
+int useController(int currentCursor, volatile bool *btn);
 
 int adjustHorizontal(int joystickX, int currentCursor);
 

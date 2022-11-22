@@ -1,7 +1,7 @@
 //
 // Created by prabh on 11/6/22.
 //
-#include "../../client-src/include/Game.h"
+#include "../include/Game.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
