@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <softPwm.h>
 #include <stdbool.h>
-#include "../../server-src/include/Game.h"
+#include "../include/Game.h"
 
 typedef unsigned char uchar;
 typedef unsigned int uint;
@@ -43,9 +43,9 @@ uchar get_ADC_Result(uint channel);
 
 /**
  * Handle movement and button pressed.
- * @param game
- * @param btn
- * @return
+ * @param currentCursor - the current cursor postion
+ * @param btn - pointer to boolean dictating button press
+ * @return 0 on success, -1 on failure
  */
 int useController(int currentCursor, volatile bool *btn);
 

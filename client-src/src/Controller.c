@@ -38,12 +38,12 @@
 
 
 // Initial set up for wiring.
-void controllerSetup(){
+int controllerSetup(void){
 
     if(wiringPiSetup() == -1){ //when initialize wiring failed,print messageto screen
         printf("setup wiringPi failed !");
         //TODO: ADD ERROR HANDLING HERE.
-        //return 1;
+        return -1;
     }
 
     //Setting modes for the analog stick.
@@ -55,6 +55,7 @@ void controllerSetup(){
     // Setting mode for button.
     pinMode(LIGHT_TURN, OUTPUT);
 
+    return 0;
 }
 
 // For converting information from analog stick.
