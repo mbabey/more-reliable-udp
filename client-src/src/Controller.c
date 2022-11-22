@@ -5,6 +5,15 @@
 #include "../include/Controller.h"
 
 /**
+ * WiringPi mapping for Raspberry Pi GPIO pins.
+ */
+#define ADC_CS    0  // GPIO17
+#define ADC_CLK   1  // GPIO18
+#define ADC_DIO   2  // GPIO27
+#define BtnPin    3  // GPIO22
+#define LIGHT_TURN 4 // GPIO23
+
+/**
  * Bounds for registering analog channel outputs.
  */
 #define ANALOG_V_LOWER_BOUND 10
