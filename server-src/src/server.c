@@ -232,6 +232,11 @@ void sv_comm_core(struct server_settings *set)
     {
         handle_broadcast(set);
     }
+    
+    if (set->num_conn_client < MAX_CLIENTS)
+    {
+        set->game->updateGameState(set->game, NULL, NULL, NULL); /* Reset the game state. */
+    }
 }
 
 void handle_receipt(struct server_settings *set, fd_set *readfds)

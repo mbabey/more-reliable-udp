@@ -54,6 +54,7 @@
  * updateGameState
  * <p>
  * Update the game state with a new cursor position, turn character, and track game array.
+ * Passing a game and NULL cursor, NULL turn, and NULL trackGame will reset the game.
  * </p>
  * @param game - the game to update
  * @param new_cursor - the new cursor position
@@ -65,6 +66,15 @@ void updateGameState(struct Game *game,
                      const char *new_turn,
                      const uint8_t *new_trackGame);
 
+/**
+ * resetGame
+ * <p>
+ * Reset the game to its initial state.
+ * </p>
+ * @param game - the game to reset
+ */
+void resetGame(struct Game *game);
+
 struct Game *initializeGame(void)
 {
     struct Game* game;
@@ -75,17 +85,7 @@ struct Game *initializeGame(void)
         return NULL;
     }
     
-    // All cells are empty to start.
-    for (int i = 0; i < GAME_STATE_BYTES; i++)
-    {
-        game->trackGame[i] = ' ';
-    }
-    
-    // X goes first.
-    game->turn = 'X';
-    
-    // Start cursor in the center.
-    game->cursor = MIDDLE;
+    resetGame(game);
     
     game->updateGameState = updateGameState;
     
@@ -98,6 +98,21 @@ struct Game *initializeGame(void)
     return game;
 }
 
+void resetGame(struct Game *game)
+{
+    // All cells are empty to start.
+    for (int i = 0; i < GAME_STATE_BYTES; i++)
+    {
+        game->trackGame[i] = ' ';
+    }
+    
+    // X goes first.
+    game->turn = 'X';
+    
+    // Start cursor in the center.
+    game->cursor = MIDDLE;
+}
+
 void updateGameState(struct Game *game,
                      const uint8_t *new_cursor,
                      const char *new_turn,
@@ -106,6 +121,11 @@ void updateGameState(struct Game *game,
     if (game == NULL)
     {
         return;
+    }
+    
+    if (new_cursor == NULL && new_turn == NULL && new_trackGame == NULL)
+    {
+        resetGame(game);
     }
     
     if (new_cursor != NULL)
