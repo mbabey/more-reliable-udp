@@ -219,8 +219,8 @@ void cl_messaging(struct client_settings *set)
         
         if (set->turn)
         {
-            uint8_t cursor; /* The position of the cursor. */
-            bool btn; /* Whether the button has been pressed. */
+            volatile uint8_t cursor; /* The position of the cursor. */
+            volatile bool btn = false; /* Whether the button has been pressed. */
             // input buffer: 1 B cursor, 1 B btn press
 //            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
 //

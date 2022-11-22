@@ -306,7 +306,7 @@ void displayBoardWithCursor(struct Game *game)
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
         printf("     |     |     \n\n");
-    } else if (game->cursor == MIDDLE_LEFT)
+    } else if (game->cursor == MIDDLE_RIGHT)
     {
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
