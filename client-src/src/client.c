@@ -222,10 +222,10 @@ void cl_messaging(struct client_settings *set)
             volatile uint8_t cursor; /* The position of the cursor. */
             volatile bool btn = false; /* Whether the button has been pressed. */
             // input buffer: 1 B cursor, 1 B btn press
-//            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
-//
-//            input_buffer[0] = cursor;
-//            input_buffer[1] = btn;
+            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
+
+            input_buffer[0] = cursor;
+            input_buffer[1] = (uint8_t) btn;
             
             /* Send input to server. */
             create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
