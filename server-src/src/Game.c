@@ -75,6 +75,72 @@ void updateGameState(struct Game *game,
  */
 void resetGame(struct Game *game);
 
+/**
+ * isGridFull
+ * <p>
+ * Determine if the grid is full.
+ * </p>
+ * @param currentGame - the game to check
+ * @return - true if the grid is full, false otherwise
+ */
+bool isGridFull(struct Game* currentGame);
+
+/**
+ * displayDetails
+ * <p>
+ * Displays the status of the current game.
+ * </p>
+ * @param game - Pointer to the current game.
+ */
+void displayDetails(struct Game* game);
+
+/**
+ * displayBoardEnd
+ * <p>
+ * Display the end game screen.
+ * </p>
+ * @param game - the game to display
+ */
+void displayBoardEnd(struct Game* game);
+
+/**
+ * displayBoardWithCursor
+ * <p>
+ * Display the game board with the cursor present.
+ * </p>
+ * @param game - the game to display
+ */
+void displayBoardWithCursor(struct Game *game);
+
+/**
+ * validateMove
+ * <p>
+ * Takes in a cell location and updates board if valid.
+ * </p>
+ * @param game - pointer to current game.
+ * @return true if move is valid, false otherwise
+ */
+bool validateMove(struct Game *game);
+
+/**
+ * updateBoard
+ * <p>
+ * Updates a cell to a new character.
+ * </p>
+ * @param game - pointer to current game.
+ */
+void updateBoard(struct Game *game);
+
+/**
+ * isGameOver
+ * <p>
+ * Check board if win condition is met or board is full.
+ * </p>
+ * @param game - the game to check for a win
+ * @return - true if a win has occurred, false otherwise
+ */
+bool isGameOver(struct Game* game);
+
 struct Game *initializeGame(void)
 {
     struct Game* game;
@@ -142,7 +208,6 @@ void updateGameState(struct Game *game,
     }
 }
 
-//TODO: CHANGE COLOR ON WIN OR LOSE.
 void displayBoardEnd(struct Game* game) {
     
     CLEAR_SCREEN;
@@ -150,7 +215,7 @@ void displayBoardEnd(struct Game* game) {
     // ROW 1
     if(game->winCondition == TOP_ROW) {
         printf("     |     |     \n");
-        printf("  %s%c   |  %c  |  %c%s \n",GREEN, game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT], TEXT_DEF);
+        printf("  %s%c  |  %c  |  %c%s \n",GREEN, game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT], TEXT_DEF);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
@@ -163,7 +228,7 @@ void displayBoardEnd(struct Game* game) {
     // ROW 2
     else if(game->winCondition == MIDDLE_ROW) {
         printf("     |     |     \n");
-        printf("  %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %s%c  |  %c  |  %c%s \n", GREEN, game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT], TEXT_DEF);
@@ -176,7 +241,7 @@ void displayBoardEnd(struct Game* game) {
     // ROW 3
     else if(game->winCondition == BOTTOM_ROW) {
         printf("     |     |     \n");
-        printf("  %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
@@ -189,7 +254,7 @@ void displayBoardEnd(struct Game* game) {
     // DIAGONAL LEFT
     else if(game->winCondition == DIAGONAL_LEFT) {
         printf("     |     |     \n");
-        printf("  %s%c%s   |  %c  |  %c \n", GREEN,game->trackGame[TOP_LEFT],TEXT_DEF, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %s%c%s  |  %c  |  %c \n", GREEN,game->trackGame[TOP_LEFT],TEXT_DEF, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], GREEN,game->trackGame[MIDDLE],TEXT_DEF, game->trackGame[MIDDLE_RIGHT]);
@@ -202,7 +267,7 @@ void displayBoardEnd(struct Game* game) {
     // DIAGONAL RIGHT
     else if(game->winCondition == DIAGONAL_RIGHT) {
         printf("     |     |     \n");
-        printf("  %c   |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], GREEN,game->trackGame[TOP_RIGHT],TEXT_DEF);
+        printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], GREEN,game->trackGame[TOP_RIGHT],TEXT_DEF);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], GREEN,game->trackGame[MIDDLE],TEXT_DEF, game->trackGame[MIDDLE_RIGHT]);
@@ -215,7 +280,7 @@ void displayBoardEnd(struct Game* game) {
     // COLUMN 1
     else if(game->winCondition == LEFT_COLUMN) {
         printf("     |     |     \n");
-        printf("  %s%c%s   |  %c  |  %c \n", GREEN,game->trackGame[TOP_LEFT],TEXT_DEF, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %s%c%s  |  %c  |  %c \n", GREEN,game->trackGame[TOP_LEFT],TEXT_DEF, game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %s%c%s  |  %c  |  %c \n", GREEN,game->trackGame[MIDDLE_LEFT],TEXT_DEF, game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
@@ -228,7 +293,7 @@ void displayBoardEnd(struct Game* game) {
     // COLUMN 2
     else if(game->winCondition == MIDDLE_COLUMN) {
         printf("     |     |     \n");
-        printf("  %c   |  %s%c%s  |  %c \n", game->trackGame[TOP_LEFT], GREEN,game->trackGame[TOP_MIDDLE],TEXT_DEF, game->trackGame[TOP_RIGHT]);
+        printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[TOP_LEFT], GREEN,game->trackGame[TOP_MIDDLE],TEXT_DEF, game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %s%c%s  |  %c \n", game->trackGame[MIDDLE_LEFT], GREEN,game->trackGame[MIDDLE],TEXT_DEF, game->trackGame[MIDDLE_RIGHT]);
@@ -270,8 +335,6 @@ void displayBoardEnd(struct Game* game) {
 void displayBoardWithCursor(struct Game *game)
 {
     CLEAR_SCREEN;
-    
-    // TODO: CHECK IF WON, IF TIE, OR CONTINUE GAME CHANGE PRINT.
     
     if (game->cursor == TOP_LEFT)
     {
@@ -383,7 +446,7 @@ void displayDetails(struct Game* game) {
 
     // Primary status is to check a win.
     if(isGameOver(game)) {
-        //TODO: SHOW SPECIAL END GAME SCREEN WITH COLOR.
+        
         displayBoardEnd(game); // end splash no cursor.
 
         printf("Player");
@@ -409,11 +472,6 @@ void displayDetails(struct Game* game) {
     }
 }
 
-/**
- * Determine if the grid is full and no more moves can be made.
- * @param game Pointer to the game struct.
- * @return True/False of if the grid is already full.
- */
 bool isGridFull(struct Game *game)
 {
     for (int i = 0; i < GAME_STATE_BYTES; i++)

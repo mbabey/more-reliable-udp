@@ -8,8 +8,17 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/**
+ * The number of bytes in the game state array.
+ */
 #define GAME_STATE_BYTES 9
 
+/**
+ * Game
+ * <p>
+ * Holds the information and interfaces necessary to run the game.
+ * </p>
+ */
 struct Game
 {
     char trackGame[GAME_STATE_BYTES];
@@ -26,45 +35,14 @@ struct Game
     bool (*isGameOver)(struct Game *);
 };
 
-//TODO: INITIALIZE STRUCT
 /**
- * Pointer to game to be initialized.
+ * initializeGame
+ * <p>
+ * Allocate memory for a game struct. Set the default values in the game. Set the function pointers in the game struct.
+ * </p>
+ * @return - pointer to the initialized game
  */
 struct Game *initializeGame(void);
-
-//TODO: DISPLAY BOARD.
-/**
- * Print Board on screen.
- * @param game Pointer to current game.
- */
-void displayBoardEnd(struct Game* game);
-
-//TODO: DISPOAY CURSER ON BOARD.
-void displayBoardWithCursor(struct Game *game);
-
-//TODO: VALIDATE MOVE.
-/**
- * Takes in a cell location and updates board if valid.
- * @param game Pointer to current game.
- * @return
- */
-bool validateMove(struct Game *game);
-
-//TODO: UPDATE BOARD.
-/**
- * Updates a cell to a new character.
- * @param game Pointer to current game.
- */
-void updateBoard(struct Game *game);
-
-//TODO: GET BOARD.
-//TODO: CHECK IF THERE IS A WIN
-/**
- * Check board if win condition is met or board is full.
- * @param game
- * @return
- */
-bool isGameOver(struct Game* game);
 
 /**
  * Update the cursor position for the horizontal value.
@@ -80,17 +58,6 @@ void updateCursorHorizontal(struct Game* currentGame, int joystickY);
  */
 void updateCursorVertical(struct Game* currentGame, int joystickX);
 
-/**
- * Determine if the grid is full.
- * @param currentGame
- * @return
- */
-bool isGridFull(struct Game* currentGame);
 
-/**
- * Displays the status of the current game.
- * @param game Pointer to the current game.
- */
-void displayDetails(struct Game* game);
 
 #endif //GAME_GAME_H
