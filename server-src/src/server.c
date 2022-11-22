@@ -126,6 +126,8 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
  */
 void sv_sendto(struct server_settings *set, struct conn_client *client);
 
+void sv_disconnect(struct server_settings *set, struct conn_client *client);
+
 /**
  * set_signal_handling
  * <p>
@@ -252,9 +254,33 @@ void handle_receipt(struct server_settings *set, fd_set *readfds)
                 if (!errno)
                 { sv_recvfrom(set, curr_cli); }
             }
-            curr_cli = curr_cli->next; /* Go to next client in list. */
+            if (curr_cli->r_packet->flags == FLAG_FIN)
+            {
+                struct conn_client *disconn_client;
+                
+                disconn_client = curr_cli;
+                curr_cli       = curr_cli->next; /* Go to next client in list. */
+                
+                sv_disconnect(set, disconn_client);
+            } else
+            {
+                curr_cli = curr_cli->next; /* Go to next client in list. */
+            }
         }
     }
+}
+
+void sv_disconnect(struct server_settings *set, struct conn_client *client)
+{
+    create_packet(client->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
+    sv_sendto(set, client);
+    if (!errno)
+    {
+        create_packet(client->s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
+        sv_sendto(set, client);
+    }
+    if (!errno)
+    { sv_recvfrom(set, client); } /* Wait for FIN/ACK */
 }
 
 void handle_broadcast(struct server_settings *set)
@@ -419,19 +445,8 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
     }
     set->mm->mm_add(set->mm, client->r_packet->payload);
     
-    if (*packet_buffer == FLAG_FIN)
-    {
-        create_packet(client->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
-        sv_sendto(set, client);
-        if (!errno)
-        {
-            create_packet(client->s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
-            sv_sendto(set, client);
-        }
-        if (!errno)
-        { sv_recvfrom(set, client); } /* Wait for FIN/ACK */
-    } else if ((*packet_buffer & FLAG_PSH) &&
-            (*(packet_buffer + 1) == (uint8_t) (client->s_packet->seq_num + 1)))
+    if ((*packet_buffer & FLAG_PSH) &&
+        (*(packet_buffer + 1) == (uint8_t) (client->s_packet->seq_num + 1)))
     {
         create_packet(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
         sv_sendto(set, client);
