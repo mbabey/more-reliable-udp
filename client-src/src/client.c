@@ -25,7 +25,7 @@
 /**
  * The base timeout duration before retransmission.
  */
-#define BASE_TIMEOUT 4 /* seconds */
+#define BASE_TIMEOUT 8 /* seconds */
 
 /**
  * The number of bytes needed to be sent to the server to update the server-side game state.
