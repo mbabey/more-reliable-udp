@@ -1,4 +1,4 @@
-#include "../include/Controller.h"
+//#include "../include/Controller.h"
 #include "../include/Game.h"
 #include "../include/client-util.h"
 #include "../include/client.h"
@@ -187,13 +187,15 @@ void cl_connect(struct client_settings *set)
         cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
     
-    printf("\nConnected to server %s:%u\n",
-           inet_ntoa(set->server_addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
-           ntohs(set->server_addr->sin_port));
-    
-    create_packet(set->s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
     if (!errno)
-    { cl_sendto(set); }
+    {
+        printf("\nConnected to server %s:%u\n",
+               inet_ntoa(set->server_addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+               ntohs(set->server_addr->sin_port));
+    
+        create_packet(set->s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
+        cl_sendto(set);
+    }
 }
 
 void cl_messaging(struct client_settings *set) //
@@ -217,18 +219,21 @@ void cl_messaging(struct client_settings *set) //
             cl_recvfrom(set, flag_set, sizeof(flag_set), (uint8_t) (set->s_packet->seq_num + 1));
         }
         
-        create_packet(set->s_packet, FLAG_ACK, set->r_packet->seq_num, 0, NULL);
-        cl_sendto(set);
+        if (!errno)
+        {
+            create_packet(set->s_packet, FLAG_ACK, set->r_packet->seq_num, 0, NULL);
+            cl_sendto(set);
+        }
         
         if (set->turn)
         {
             volatile uint8_t cursor; /* The position of the cursor. */
-            volatile bool btn = false; /* Whether the button has been pressed. */
+            volatile bool    btn = false; /* Whether the button has been pressed. */
             // input buffer: 1 B cursor, 1 B btn press
-            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
+//            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
 
-            input_buffer[0] = cursor;
-            input_buffer[1] = (uint8_t) btn;
+//            input_buffer[0] = cursor;
+//            input_buffer[1] = (uint8_t) btn;
             
             /* Send input to server. */
             create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
@@ -310,19 +315,19 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
     socklen_t size_addr_in;
     uint8_t   packet_buffer[BUF_LEN];
     bool      go_ahead;
-    int num_to;
+    int       num_to;
     
     set->timeout->tv_sec = BASE_TIMEOUT;
     
     size_addr_in = sizeof(struct sockaddr_in);
     go_ahead     = false;
-    num_to = 0;
+    num_to       = 0;
     do
     {
         printf("\nAwaiting packet with flags: ");
         for (uint8_t i = 0; i < num_flags; ++i)
         {
-            printf( "%s, ", check_flags(flag_set[i]));
+            printf("%s, ", check_flags(flag_set[i]));
         }
         printf("\n");
         
@@ -337,7 +342,8 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
         
         /* set->server_addr will be overwritten when a message is received on the socket set->server_fd */
         memset(packet_buffer, 0, BUF_LEN);
-        if (recvfrom(set->server_fd, packet_buffer, BUF_LEN, 0, (struct sockaddr *) set->server_addr, &size_addr_in) == -1)
+        if (recvfrom(set->server_fd, packet_buffer, BUF_LEN, 0, (struct sockaddr *) set->server_addr, &size_addr_in) ==
+            -1)
         {
             switch (errno)
             {
@@ -364,7 +370,7 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
         } else
         {
             set->timeout->tv_usec = BASE_TIMEOUT; /* Packet received: reset the timeout. */
-    
+            
             /* Check the seq num and all flags in the set of accepted flags against
              * the seq num and flags in the packet_buffer. If one is valid, we have right packet.
              * Otherwise, resend the last sent packet. */
@@ -442,7 +448,8 @@ void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
     
     if (set->r_packet->flags & FLAG_PSH) /* Indicates that the packet contains data which must be displayed. */
     {
-        set->game->updateGameState(set->game, set->r_packet->payload, (char *) set->r_packet->payload + 1, set->r_packet->payload + 2);
+        set->game->updateGameState(set->game, set->r_packet->payload, (char *) set->r_packet->payload + 1,
+                                   set->r_packet->payload + 2);
         set->game->displayBoardWithCursor(set->game);
         if (set->game->isGameOver(set->game))
         {

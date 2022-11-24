@@ -426,29 +426,6 @@ const char *check_flags(uint8_t flags)
     }
 }
 
-uint8_t modify_timeout(uint8_t timeout_count)
-{
-    switch (timeout_count)
-    {
-        case 0:
-        {
-            return SERVER_TIMEOUT_SHORT;
-        }
-        case 1:
-        {
-            return SERVER_TIMEOUT_MED;
-        }
-        case 2:
-        {
-            return SERVER_TIMEOUT_LONG;
-        }
-        default:
-        {
-            return SERVER_TIMEOUT_SHORT;
-        }
-    }
-}
-
 void fatal_errno(const char *file, const char *func, const size_t line, int err_code) // NOLINT(bugprone-easily-swappable-parameters)
 {
     const char *msg;
