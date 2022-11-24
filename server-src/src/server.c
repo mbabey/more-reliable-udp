@@ -436,7 +436,8 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
         (*(packet_buffer + 1) != client->s_packet->seq_num))
     {
         return false; /* Bad seq num: do not go ahead. */
-    } else if (*packet_buffer == (FLAG_FIN | FLAG_ACK))
+    }
+    if (*packet_buffer == (FLAG_FIN | FLAG_ACK))
     {
         disconnect_client(set, client);
         return true; /* Client disconnected: go ahead. */

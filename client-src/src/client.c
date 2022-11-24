@@ -13,14 +13,19 @@
 #include <unistd.h>
 
 /**
- * The maximum number of timeouts to occur before the connection is deemed lost.
+ * The maximum number of timeouts to occur before the timeout duration is reduced.
  */
-#define MAX_TIMEOUT 3
+#define MAX_NUM_TIMEOUTS 2
+
+/**
+ * Timeout duration below which a connection is deemed failed.
+ */
+#define MIN_TIMEOUT 1 /* seconds */
 
 /**
  * The base timeout duration before retransmission.
  */
-#define BASE_TIMEOUT 1
+#define BASE_TIMEOUT 4 /* seconds */
 
 /**
  * The number of bytes needed to be sent to the server to update the server-side game state.
@@ -85,7 +90,7 @@ void cl_sendto(struct client_settings *set);
  * cl_recvfrom
  * <p>
  * Await a response from the server. If a response is not received within the timeout, retransmit the packet,
- * then wait again. If MAX_TIMEOUT timeouts occur, set running to 0 and return. If the message received from the
+ * then wait again. If MAX_NUM_TIMEOUTS timeouts occur, set running to 0 and return. If the message received from the
  * server does not match the expected flags and sequence number, retransmit the last sent packet.
  * </p>
  * @param set - the client settings
@@ -106,7 +111,7 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
  * @param num_timeouts - the number of timeouts that have occurred
  * @return -1 if the timeout count has been exceeded, 0 if it has not
  */
-int handle_timeout(struct client_settings *set, int num_timeouts);
+int handle_timeout(struct client_settings *set, int *num_to);
 
 /**
  * cl_process
@@ -306,13 +311,13 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
     socklen_t size_addr_in;
     uint8_t   packet_buffer[BUF_LEN];
     bool      go_ahead;
-    int       num_timeouts;
+    int num_to;
     
     set->timeout->tv_sec = BASE_TIMEOUT;
     
     size_addr_in = sizeof(struct sockaddr_in);
     go_ahead     = false;
-    num_timeouts = 0;
+    num_to = 0;
     do
     {
         printf("\nAwaiting packet with flags: ");
@@ -323,13 +328,13 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
         printf("\n");
         
         /* Update socket's timeout. */
-//        if (setsockopt(set->server_fd,
-//                       SOL_SOCKET, SO_RCVTIMEO, (const char *) set->timeout, sizeof(struct timeval)) == -1)
-//        {
-//            fatal_errno(__FILE__, __func__, __LINE__, errno);
-//            running = 0;
-//            return;
-//        }
+        if (setsockopt(set->server_fd, SOL_SOCKET, SO_RCVTIMEO,
+                       (const char *) set->timeout, sizeof(struct timeval)) == -1)
+        {
+            fatal_errno(__FILE__, __func__, __LINE__, errno);
+            running = 0;
+            return;
+        }
         
         /* set->server_addr will be overwritten when a message is received on the socket set->server_fd */
         memset(packet_buffer, 0, BUF_LEN);
@@ -343,7 +348,7 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
                 }
                 case EWOULDBLOCK: /* If the socket times out */
                 {
-                    if (handle_timeout(set, ++num_timeouts) == -1)
+                    if (handle_timeout(set, &num_to) == -1)
                     {
                         return;
                     }
@@ -358,7 +363,7 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
             }
         } else
         {
-            num_timeouts = 0; /* Reset num_timeouts: a packet was received. */
+            set->timeout->tv_usec = BASE_TIMEOUT; /* Packet received: reset the timeout. */
     
             /* Check the seq num and all flags in the set of accepted flags against
              * the seq num and flags in the packet_buffer. If one is valid, we have right packet.
@@ -381,31 +386,39 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
     cl_process(set, packet_buffer); /* Once we have the correct packet, we will process it */
 }
 
-int handle_timeout(struct client_settings *set, int num_timeouts) // TODO(maxwell): implement changing timeout
+int handle_timeout(struct client_settings *set, int *num_to)
 {
-    printf("\nTimeout occurred, timeouts remaining: %d\n", (MAX_TIMEOUT - num_timeouts));
+    if (++(*num_to) >= MAX_NUM_TIMEOUTS) /* Every MAX_NUM_TIMEOUTS timeouts, reduce the timeout time. */
+    {
+        *num_to = 0;
+        set->timeout->tv_sec /= 2; /* Reduce the timeout duration by a factor of one half. */
+    }
     
     // Connection to server failure.
-    if (num_timeouts >= MAX_TIMEOUT && set->s_packet->flags == FLAG_SYN)
+    if (set->timeout->tv_sec < MIN_TIMEOUT && set->s_packet->flags == FLAG_SYN)
     {
-        printf("\nToo many unsuccessful attempts to connect to server, terminating\n");
+        printf("\nServer connection request timed out.\n");
         running = 0;
         return -1;
     }
     
     // Timeout after sending FIN/ACK.
-    if (num_timeouts >= MAX_TIMEOUT && set->s_packet->flags == (FLAG_FIN | FLAG_ACK))
+    if (set->timeout->tv_sec < MIN_TIMEOUT && set->s_packet->flags == (FLAG_FIN | FLAG_ACK))
     {
-        printf("\nAssuming server terminated, disconnecting.\n");
+        printf("\nAssuming server disconnected.\n");
         running = 0;
         return -1;
     }
     
     // Timeout count exceeded in any other circumstance.
-    if (num_timeouts >= MAX_TIMEOUT)
+    if (set->timeout->tv_sec < MIN_TIMEOUT)
     {
+        printf("\nConnection to server interrupted.\n");
+        running = 0;
         return -1;
     }
+    
+    printf("\nTimeout occurred. Next timeout in %ld seconds.\n", set->timeout->tv_sec);
     
     // Timeout count not exceeded, retransmit.
     cl_sendto(set);

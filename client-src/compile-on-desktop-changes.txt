@@ -1,0 +1,12 @@
+setup.c:
+    Controller header file
+    setupController in set_client_defaults
+
+client.c:
+    Controller header file
+    useController in cl_messaging
+
+CMakeLists.txt
+    Line 17 - source
+    Line 26 - header
+    Bottom of file - libraries

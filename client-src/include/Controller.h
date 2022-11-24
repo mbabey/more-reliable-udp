@@ -6,7 +6,6 @@
 #define GAME_CONTROLLER_H
 
 // Need to install wiring for wiring library.
-#include "../include/Game.h"
 #include <softPwm.h>
 #include <stdbool.h>
 #include <stdio.h>
