@@ -114,7 +114,7 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client);
  * @param num_to
  * @return
  */
-int handle_timeout(struct server_settings *set, int *num_to);
+int handle_timeout(struct server_settings *set);
 
 /**
  * sv_process
@@ -403,26 +403,37 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client)
     socklen_t size_addr_in;
     bool      go_ahead;
     
+    set->timeout->tv_sec = BASE_TIMEOUT;
+    
     size_addr_in = sizeof(struct sockaddr_in);
     go_ahead     = false;
     do
     {
+        if (setsockopt(client->c_fd, SOL_SOCKET, SO_RCVTIMEO,
+                       (const char *) set->timeout, sizeof(struct timeval)) == -1)
+        {
+            fatal_errno(__FILE__, __func__, __LINE__, errno);
+            running = 0;
+            return;
+        }
+        
         memset(packet_buffer, 0, BUF_LEN);
         if (recvfrom(client->c_fd, packet_buffer, BUF_LEN, 0, (struct sockaddr *) client->addr, &size_addr_in) == -1)
         {
             switch (errno)
             {
-                case EINTR:
+                case EINTR: /* User presses ctrl+C */
                 {
                     // running set to 0 with signal handler.
                     return;
                 }
-                case EWOULDBLOCK:
+                case EWOULDBLOCK: /* Timeout occurred waiting for packet. */
                 {
-                    if (handle_timeout(set, &num_to) == -1)
+                    if (handle_timeout(set) == -1)
                     {
                         return;
                     }
+                    sv_sendto(set, client);
                     break;
                 }
                 default:
@@ -434,6 +445,8 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client)
             }
         } else
         {
+            set->timeout->tv_sec = BASE_TIMEOUT;
+            
             /* If bad message received, do not go ahead. If good message received, do go ahead. */
             if (!(go_ahead = sv_process(set, client, packet_buffer)))
             {
@@ -443,9 +456,19 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client)
     } while (!go_ahead);
 }
 
-int handle_timeout(struct server_settings *set, int *num_to)
+int handle_timeout(struct server_settings *set)
 {
-
+    set->timeout->tv_sec *= 2; /* Increase the timeout duration by a factor of two. */
+    
+    if (set->timeout->tv_sec > MAX_TIMEOUT)
+    {
+        printf("\nConnection to client lost.\n");
+        running = 0;
+        return -1;
+    }
+    
+    printf("\nTimeout occurred. Next timeout in %ld seconds.\n", set->timeout->tv_sec);
+    return 0;
 }
 
 bool sv_process(struct server_settings *set, struct conn_client *client, const uint8_t *packet_buffer)

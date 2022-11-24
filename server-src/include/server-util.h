@@ -52,9 +52,14 @@
 #define MAX_CLIENTS 2
 
 /**
- * The number of connections which may be queued at once. NOTE: server does not currently time out.
+ * The maximum timeout duration before it is assumed that a client has lost connection.
  */
-//#define MAX_TIMEOUTS_SERVER 3
+#define MAX_TIMEOUT 32 /* seconds */
+
+/**
+ * The base receive timeout duration placed on a client socket.
+ */
+#define BASE_TIMEOUT 2 /* seconds */
 
 /**
  * packet
