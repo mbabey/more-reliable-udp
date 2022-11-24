@@ -106,6 +106,17 @@ void sv_accept(struct server_settings *set);
 void sv_recvfrom(struct server_settings *set, struct conn_client *client);
 
 /**
+ * handle_timeout
+ * <p>
+ * When a timeout occurs,
+ * </p>
+ * @param set
+ * @param num_to
+ * @return
+ */
+int handle_timeout(struct server_settings *set, int *num_to);
+
+/**
  * sv_process
  * <p>
  * Check the flags in the packet struct. Depending on the flags, respond accordingly.
@@ -406,6 +417,14 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client)
                     // running set to 0 with signal handler.
                     return;
                 }
+                case EWOULDBLOCK:
+                {
+                    if (handle_timeout(set, &num_to) == -1)
+                    {
+                        return;
+                    }
+                    break;
+                }
                 default:
                 {
                     fatal_errno(__FILE__, __func__, __LINE__, errno);
@@ -422,6 +441,11 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client)
             }
         }
     } while (!go_ahead);
+}
+
+int handle_timeout(struct server_settings *set, int *num_to)
+{
+
 }
 
 bool sv_process(struct server_settings *set, struct conn_client *client, const uint8_t *packet_buffer)

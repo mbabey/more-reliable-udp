@@ -15,7 +15,7 @@
 /**
  * The maximum number of timeouts to occur before the timeout duration is reduced.
  */
-#define MAX_NUM_TIMEOUTS 2
+#define MAX_NUM_TIMEOUTS 3
 
 /**
  * Timeout duration below which a connection is deemed failed.
@@ -102,14 +102,13 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
 /**
  * hande_recv_timeout
  * <p>
- * Check if the number of timeouts has exceeded MAX_TIMEOUTS. If that is the case, return -1. If the sent packet
- * was a FIN/ACK or a SYN, set running to 0 and print a relevant message. Otherwise, retransmit the sent packet
- * and return 0.
+ * If the number of timeouts occurring at the current timeout interval is equal to or exceeds MAX_NUM_TIMEOUTS,
+ * reduce the current timeout interval by one half. If the timeout interval is then less than MIN_TIMEOUT, print a
+ * relevant message, set running to 0, and return -1. Otherwise, return 0.
  * </p>
  * @param set - the client settings
- * @param s_packet - the packet to send
- * @param num_timeouts - the number of timeouts that have occurred
- * @return -1 if the timeout count has been exceeded, 0 if it has not
+ * @param num_to - the number of timeouts that have occurred at the current interval
+ * @return -1 if the timeout interval has been reduced below the limit, 0 if it has not
  */
 int handle_timeout(struct client_settings *set, int *num_to);
 
@@ -352,6 +351,7 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
                     {
                         return;
                     }
+                    cl_sendto(set); /* Timeout count not exceeded, retransmit. */
                     break;
                 }
                 default: /* Any other error is not predicted */
@@ -394,34 +394,23 @@ int handle_timeout(struct client_settings *set, int *num_to)
         set->timeout->tv_sec /= 2; /* Reduce the timeout duration by a factor of one half. */
     }
     
-    // Connection to server failure.
-    if (set->timeout->tv_sec < MIN_TIMEOUT && set->s_packet->flags == FLAG_SYN)
-    {
-        printf("\nServer connection request timed out.\n");
-        running = 0;
-        return -1;
-    }
-    
-    // Timeout after sending FIN/ACK.
-    if (set->timeout->tv_sec < MIN_TIMEOUT && set->s_packet->flags == (FLAG_FIN | FLAG_ACK))
-    {
-        printf("\nAssuming server disconnected.\n");
-        running = 0;
-        return -1;
-    }
-    
-    // Timeout count exceeded in any other circumstance.
     if (set->timeout->tv_sec < MIN_TIMEOUT)
     {
-        printf("\nConnection to server interrupted.\n");
+        if (set->s_packet->flags == FLAG_SYN) /* Connection to server failed. */
+        {
+            printf("\nServer connection request timed out.\n");
+        } else if (set->s_packet->flags == (FLAG_FIN | FLAG_ACK)) /* Waiting to see if server missed FIN/ACK. */
+        {
+            printf("\nAssuming server disconnected.\n");
+        } else
+        {
+            printf("\nConnection to server interrupted.\n");
+        }
         running = 0;
         return -1;
     }
     
     printf("\nTimeout occurred. Next timeout in %ld seconds.\n", set->timeout->tv_sec);
-    
-    // Timeout count not exceeded, retransmit.
-    cl_sendto(set);
     return 0;
 }
 
