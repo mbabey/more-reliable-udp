@@ -20,11 +20,6 @@
 #define DEFAULT_PORT (in_port_t) 5000
 
 /**
- * The size of input buffers : 1 KB
- */
-#define BUF_LEN 1024
-
-/**
  * The maximum sequence number.
  */
 #define MAX_SEQ (uint8_t) 255
@@ -43,7 +38,7 @@
 /**
  * The number of bytes of a packet before the payload is attached.
  */
-#define PKT_STD_BYTES 4
+#define HLEN_BYTES 4
 
 /**
  * packet

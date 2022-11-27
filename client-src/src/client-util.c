@@ -159,7 +159,7 @@ uint8_t *serialize_packet(struct packet *packet)
     size_t   bytes_copied;
     uint16_t n_packet_length;
     
-    packet_size = PKT_STD_BYTES + packet->length;
+    packet_size = HLEN_BYTES + packet->length;
     if ((buffer = (uint8_t *) s_malloc(packet_size, __FILE__, __func__, __LINE__)) == NULL)
     {
         return NULL;

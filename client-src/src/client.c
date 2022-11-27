@@ -67,6 +67,15 @@ void cl_connect(struct client_settings *set);
 void cl_messaging(struct client_settings *set);
 
 /**
+ * take_turn
+ * <p>
+ * Take input from the controller and send it to the server.
+ * </p>
+ * @param set - the settings for the client
+ */
+void take_turn(struct client_settings *set);
+
+/**
  * cl_disconnect
  * <p>
  * Send a FIN packet. Wait for a FIN/ACK packet and a FIN packet. Send a FIN/ACK packet. Wait to see if the
@@ -98,6 +107,18 @@ void cl_sendto(struct client_settings *set);
  * @param flag_set - the expected flags to be received
  */
 void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_flags, uint8_t seq_num);
+
+/**
+ * cl_recv_err
+ * <p>
+ * Handle an error occurring while receiving a message. Returns 0 if the error is a timeout and the timeout limit has
+ * not been reached, or returns -1 if another error type occurs.
+ * </p>
+ * @param set - the client settings
+ * @param num_to - the number of timeouts that have occured
+ * @return
+ */
+int cl_recv_err(struct client_settings *set, int *num_to);
 
 /**
  * hande_recv_timeout
@@ -192,7 +213,7 @@ void cl_connect(struct client_settings *set)
         printf("\nConnected to server %s:%u\n",
                inet_ntoa(set->server_addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
                ntohs(set->server_addr->sin_port));
-    
+        
         create_packet(set->s_packet, FLAG_ACK, MAX_SEQ, 0, NULL);
         cl_sendto(set);
     }
@@ -201,7 +222,6 @@ void cl_connect(struct client_settings *set)
 void cl_messaging(struct client_settings *set) //
 {
     struct sigaction sa;
-    uint8_t          input_buffer[GAME_SEND_BYTES];
     
     set_signal_handling(&sa);
     
@@ -214,10 +234,8 @@ void cl_messaging(struct client_settings *set) //
         set->turn = false; /* Clean the turn indicator. */
         
         /* Update game board, set turn. */
-        { /* Scoped to allow variable name consistency. */
-            uint8_t flag_set[] = {FLAG_PSH, FLAG_PSH | FLAG_TRN};
-            cl_recvfrom(set, flag_set, sizeof(flag_set), (uint8_t) (set->s_packet->seq_num + 1));
-        }
+        uint8_t flag_set[] = {FLAG_PSH, FLAG_PSH | FLAG_TRN};
+        cl_recvfrom(set, flag_set, sizeof(flag_set), (uint8_t) (set->s_packet->seq_num + 1));
         
         if (!errno)
         {
@@ -227,24 +245,7 @@ void cl_messaging(struct client_settings *set) //
         
         if (set->turn)
         {
-            volatile uint8_t cursor; /* The position of the cursor. */
-            volatile bool    btn = false; /* Whether the button has been pressed. */
-            // input buffer: 1 B cursor, 1 B btn press
-//            cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
-
-//            input_buffer[0] = cursor;
-//            input_buffer[1] = (uint8_t) btn;
-            
-            /* Send input to server. */
-            create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
-                          GAME_SEND_BYTES, input_buffer);
-            cl_sendto(set);
-            
-            if (!errno)
-            {
-                uint8_t flag_set[] = {FLAG_ACK};
-                cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
-            }
+            take_turn(set);
         }
     }
     
@@ -252,27 +253,25 @@ void cl_messaging(struct client_settings *set) //
     { cl_disconnect(set); }
 }
 
-void cl_disconnect(struct client_settings *set)
+void take_turn(struct client_settings *set)
 {
-    create_packet(set->s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
-    cl_sendto(set);
-    if (!errno)
-    {
-        uint8_t flag_set[] = {FLAG_FIN | FLAG_ACK};
-        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
-    }
-    if (!errno)
-    {
-        uint8_t flag_set[] = {FLAG_FIN};
-        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
-    }
+    volatile uint8_t cursor; /* The position of the cursor. */
+    volatile bool    btn = false; /* Whether the button has been pressed. */
+    uint8_t          input_buffer[GAME_SEND_BYTES];
+    // input buffer: 1 B cursor, 1 B btn press
+//    cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
+
+//    input_buffer[0] = cursor;
+//    input_buffer[1] = (uint8_t) btn;
     
-    create_packet(set->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
-    if (!errno)
-    { cl_sendto(set); }
+    /* Send input to server. */
+    create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
+                  GAME_SEND_BYTES, input_buffer);
+    cl_sendto(set);
+    
     if (!errno)
     {
-        uint8_t flag_set[] = {FLAG_FIN};
+        uint8_t flag_set[] = {FLAG_ACK};
         cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
     }
 }
@@ -280,21 +279,21 @@ void cl_disconnect(struct client_settings *set)
 void cl_sendto(struct client_settings *set)
 {
     socklen_t size_addr_in;
-    uint8_t   *packet_buffer;
+    uint8_t   *buffer;
     size_t    packet_size;
     
-    packet_buffer = serialize_packet(set->s_packet); /* Serialize the packet to send. */
+    buffer = serialize_packet(set->s_packet); /* Serialize the packet to send. */
     if (errno == ENOTRECOVERABLE)
     {
         running = 0;
         return;
     }
-    set->mm->mm_add(set->mm, packet_buffer);
+    set->mm->mm_add(set->mm, buffer);
     
     size_addr_in = sizeof(struct sockaddr_in);
-    packet_size  = PKT_STD_BYTES + set->s_packet->length;
+    packet_size  = HLEN_BYTES + set->s_packet->length;
     
-    if (sendto(set->server_fd, packet_buffer, packet_size, 0, (struct sockaddr *) set->server_addr, size_addr_in) == -1)
+    if (sendto(set->server_fd, buffer, packet_size, 0, (struct sockaddr *) set->server_addr, size_addr_in) == -1)
     {
         /* errno will be set. */
         perror("Message transmission to server failed: ");
@@ -307,13 +306,13 @@ void cl_sendto(struct client_settings *set)
            check_flags(set->s_packet->flags),
            set->s_packet->seq_num);
     
-    set->mm->mm_free(set->mm, packet_buffer);
+    set->mm->mm_free(set->mm, buffer);
 }
 
 void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_flags, uint8_t seq_num)
 {
     socklen_t size_addr_in;
-    uint8_t   packet_buffer[BUF_LEN];
+    uint8_t   buffer[HLEN_BYTES + GAME_SEND_BYTES + GAME_STATE_BYTES];
     bool      go_ahead;
     int       num_to;
     
@@ -340,43 +339,27 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
             return;
         }
         
-        /* set->server_addr will be overwritten when a message is received on the socket set->server_fd */
-        memset(packet_buffer, 0, BUF_LEN);
-        if (recvfrom(set->server_fd, packet_buffer, BUF_LEN, 0, (struct sockaddr *) set->server_addr, &size_addr_in) ==
-            -1)
+        memset(buffer, 0, sizeof(buffer));
+        if (recvfrom(set->server_fd, buffer, sizeof(buffer), 0,
+                     (struct sockaddr *) set->server_addr, &size_addr_in) == -1)
         {
-            switch (errno)
+            if (cl_recv_err(set, &num_to) == -1)
             {
-                case EINTR: /* If the user presses ctrl+C */
-                {
-                    return;
-                }
-                case EWOULDBLOCK: /* If the socket times out */
-                {
-                    if (handle_timeout(set, &num_to) == -1)
-                    {
-                        return;
-                    }
-                    cl_sendto(set); /* Timeout count not exceeded, retransmit. */
-                    break;
-                }
-                default: /* Any other error is not predicted */
-                {
-                    fatal_errno(__FILE__, __func__, __LINE__, errno);
-                    running = 0;
-                    return;
-                }
+                return;
             }
+            cl_sendto(set); /* Timeout limit not exceeded, retransmit. */
         } else
         {
-            set->timeout->tv_usec = BASE_TIMEOUT; /* Packet received: reset the timeout. */
+            /* Packet received: reset the timeout. */
+            num_to = 0;
+            set->timeout->tv_usec = BASE_TIMEOUT;
             
             /* Check the seq num and all flags in the set of accepted flags against
-             * the seq num and flags in the packet_buffer. If one is valid, we have right packet.
+             * the seq num and flags in the buffer. If one is valid, we have right packet.
              * Otherwise, resend the last sent packet. */
             for (uint8_t i = 0; i < num_flags; ++i)
             {
-                if ((go_ahead = *packet_buffer == flag_set[i] && *(packet_buffer + 1) == seq_num))
+                if ((go_ahead = *buffer == flag_set[i] && *(buffer + 1) == seq_num))
                 {
                     break;
                 }
@@ -389,7 +372,35 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
         }
     } while (!go_ahead);
     
-    cl_process(set, packet_buffer); /* Once we have the correct packet, we will process it */
+    cl_process(set, buffer); /* Once we have the correct packet, we will process it */
+}
+
+int cl_recv_err(struct client_settings *set, int *num_to)
+{
+    int ret_val;
+    
+    switch (errno)
+    {
+        case EINTR: /* If the user presses ctrl+C */
+        {
+            ret_val = -1;
+            break;
+        }
+        case EWOULDBLOCK: /* If the socket times out */
+        {
+            ret_val = handle_timeout(set, num_to);
+            break;
+        }
+        default: /* Any other error is not predicted */
+        {
+            fatal_errno(__FILE__, __func__, __LINE__, errno);
+            running = 0;
+            ret_val = -1;
+            break;
+        }
+    }
+    
+    return ret_val;
 }
 
 int handle_timeout(struct client_settings *set, int *num_to)
@@ -459,6 +470,31 @@ void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
     }
     
     set->mm->mm_free(set->mm, set->r_packet->payload);
+}
+
+void cl_disconnect(struct client_settings *set)
+{
+    create_packet(set->s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
+    cl_sendto(set);
+    if (!errno)
+    {
+        uint8_t flag_set[] = {FLAG_FIN | FLAG_ACK};
+        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
+    }
+    if (!errno)
+    {
+        uint8_t flag_set[] = {FLAG_FIN};
+        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
+    }
+    
+    create_packet(set->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
+    if (!errno)
+    { cl_sendto(set); }
+    if (!errno)
+    {
+        uint8_t flag_set[] = {FLAG_FIN};
+        cl_recvfrom(set, flag_set, sizeof(flag_set), set->s_packet->seq_num);
+    }
 }
 
 void close_client(struct client_settings *set)

@@ -21,9 +21,9 @@
 #define DEFAULT_PORT (in_port_t) 5000
 
 /**
- * The size of input buffers : 1 KB
+ * The number of bytes received in the payload of a packet
  */
-#define BUF_LEN 1024
+#define GAME_RECV_BYTES 2
 
 /**
  * The maximum sequence number.
@@ -44,7 +44,7 @@
 /**
  * The number of bytes of a packet before the payload is attached.
  */
-#define STD_PKT_BYTES 4
+#define HLEN_BYTES 4
 
 /**
  * The maximum number of clients that can communicate with the server at once.

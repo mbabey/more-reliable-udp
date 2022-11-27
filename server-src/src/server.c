@@ -33,15 +33,6 @@ static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-cons
 void open_server(struct server_settings *set);
 
 /**
- * await_connect
- * <p>
- * Await and accept client connections. If program is interrupted by the user while waiting, close the server.
- * </p>
- * @param set - server_settings *: pointer to the settings for this server
- */
-void await_connect(struct server_settings *set);
-
-/**
  * sv_comm_core
  * <p>
  * Create and zero the received packet and sent packet structs. Set the timeout option on the socket.
@@ -166,7 +157,7 @@ void run(int argc, char *argv[], struct server_settings *set)
     open_server(set);
     
     if (!errno)
-    { await_connect(set); }
+    { sv_comm_core(set); }
     
     /* return to main. */
 }
@@ -198,55 +189,51 @@ void open_server(struct server_settings *set)
     printf("\nServer running on %s:%d\n", set->server_ip, set->server_port);
 }
 
-void await_connect(struct server_settings *set)
-{
-    struct sigaction sa;
-    
-    set_signal_handling(&sa);
-    running = 1;
-    
-    while (running)
-    {
-        sv_comm_core(set);
-    }
-}
-
 void sv_comm_core(struct server_settings *set)
 {
     fd_set readfds;
     int    max_fd;
+    struct sigaction sa;
     
-    max_fd = set_readfds(set, &readfds);
+    set_signal_handling(&sa);
     
-    // set->timeout->tv_sec = modify_timeout(timeout_count); // Here in case a timeout will be set in select.
+    if (errno)
+    { return; /* set_signal_handling may have failed. */ }
     
-    if (select(max_fd + 1, &readfds, NULL, NULL, NULL) == -1)
+    running = 1;
+    while (running)
     {
-        switch (errno)
+        max_fd = set_readfds(set, &readfds);
+    
+        if (select(max_fd + 1, &readfds, NULL, NULL, NULL) == -1)
         {
-            case EINTR:
+            switch (errno)
             {
-                // running set to 0 with signal handler.
-                return;
-            }
-            default:
-            {
-                fatal_errno(__FILE__, __func__, __LINE__, errno);
-                running = 0;
-                return;
+                case EINTR:
+                {
+                    // running set to 0 with signal handler.
+                    return;
+                }
+                default:
+                {
+                    fatal_errno(__FILE__, __func__, __LINE__, errno);
+                    running = 0;
+                    return;
+                }
             }
         }
-    }
     
-    handle_receipt(set, &readfds);
-    if (set->num_conn_client == MAX_CLIENTS && !errno) /* If MAX_CLIENTS clients are connected, the game is running. */
-    {
-        handle_broadcast(set);
-    }
+        handle_receipt(set, &readfds); /* Handle a received message on any of the active sockets. */
+        
+        if (set->num_conn_client == MAX_CLIENTS && !errno) /* If MAX_CLIENTS clients are connected, the game is running. */
+        {                                                  /* Broadcast the game state to all connected clients. */
+            handle_broadcast(set);
+        }
     
-    if (set->num_conn_client < MAX_CLIENTS)
-    {
-        set->game->updateGameState(set->game, NULL, NULL, NULL); /* Reset the game state. */
+        if (set->num_conn_client < MAX_CLIENTS)
+        {
+            set->game->updateGameState(set->game, NULL, NULL, NULL); /* Reset the game state. */
+        }
     }
 }
 
@@ -353,12 +340,12 @@ void sv_accept(struct server_settings *set)
 {
     struct sockaddr_in from_addr;
     socklen_t          size_addr_in;
-    uint8_t            buffer[BUF_LEN];
+    uint8_t            buffer[HLEN_BYTES];
     
     size_addr_in = sizeof(struct sockaddr_in);
     
     /* Get client sockaddr_in here. */
-    if ((recvfrom(set->server_fd, buffer, BUF_LEN, 0, (struct sockaddr *) &from_addr, &size_addr_in)) == -1)
+    if ((recvfrom(set->server_fd, buffer, sizeof(buffer), 0, (struct sockaddr *) &from_addr, &size_addr_in)) == -1)
     {
         switch (errno)
         {
@@ -399,7 +386,7 @@ void sv_accept(struct server_settings *set)
 
 void sv_recvfrom(struct server_settings *set, struct conn_client *client)
 {
-    uint8_t   packet_buffer[BUF_LEN];
+    uint8_t   packet_buffer[HLEN_BYTES + GAME_RECV_BYTES];
     socklen_t size_addr_in;
     bool      go_ahead;
     
@@ -417,8 +404,9 @@ void sv_recvfrom(struct server_settings *set, struct conn_client *client)
             return;
         }
         
-        memset(packet_buffer, 0, BUF_LEN);
-        if (recvfrom(client->c_fd, packet_buffer, BUF_LEN, 0, (struct sockaddr *) client->addr, &size_addr_in) == -1)
+        memset(packet_buffer, 0, sizeof(packet_buffer));
+        if (recvfrom(client->c_fd, packet_buffer, sizeof(packet_buffer), 0,
+                     (struct sockaddr *) client->addr, &size_addr_in) == -1)
         {
             switch (errno)
             {
@@ -504,6 +492,7 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
         create_packet(client->s_packet, FLAG_ACK, client->r_packet->seq_num, 0, NULL);
         sv_sendto(set, client);
         
+        /* Update the game state. */
         set->game->cursor = *client->r_packet->payload;
         if (*(client->r_packet->payload + 1))
         {
@@ -531,7 +520,7 @@ void sv_sendto(struct server_settings *set, struct conn_client *client)
     set->mm->mm_add(set->mm, packet_buffer);
     
     size_addr_in = sizeof(struct sockaddr_in);
-    packet_size  = STD_PKT_BYTES + client->s_packet->length;
+    packet_size  = HLEN_BYTES + client->s_packet->length;
     
     printf("\nSending packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
            inet_ntoa(client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
