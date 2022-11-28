@@ -52,7 +52,7 @@ struct client_settings
  * @param argv - the command line arguments
  * @param set - the client set
  */
-void run_client(int argc, char *argv[], struct client_settings *set);
+void run(int argc, char *argv[], struct client_settings *set);
 
 /**
  * close_client

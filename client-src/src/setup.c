@@ -14,10 +14,9 @@
 /**
  * set_client_defaults
  * <p>
- * Zero the memory in client_settings. Set the default port, initialize the memory manager, and setup the timeout
- * struct.
+ * Zero the memory in client_settings. Initialize the controller. Allocate memory for and initialize state parameters.
  * </p>
- * @param set - client_settings *: pointer to the settings for this client
+ * @param set - the client settings
  */
 void set_client_defaults(struct client_settings *set);
 
@@ -48,7 +47,8 @@ void init_def_state(int argc, char *argv[], struct client_settings *set)
 {
     set_client_defaults(set);
     
-    parse_arguments(argc, argv, set);
+    if (!errno)
+    { parse_arguments(argc, argv, set); }
 }
 
 void set_client_defaults(struct client_settings *set)
@@ -59,14 +59,14 @@ void set_client_defaults(struct client_settings *set)
     
 //    if ((controllerSetup()) == -1)
 //    {
-//        exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
+//        return; // NOLINT(concurrency-mt-unsafe) : no threads here
 //    }
     
     errno = 0; /* errno set in controllerSetup, but it does not matter; clean it. */
     
     if (allocate_defaults(set) == -1)
     {
-        exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe) : no threads here
+        return; // NOLINT(concurrency-mt-unsafe) : no threads here
     }
 }
 
@@ -127,8 +127,7 @@ void parse_arguments(int argc, char *argv[], struct client_settings *set)
             {
                 if ((set->server_ip = check_ip(optarg, base)) == NULL)
                 {
-                    free_memory_manager(set->mm);
-                    exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
+                    return;
                 }
                 break;
             }
@@ -137,24 +136,20 @@ void parse_arguments(int argc, char *argv[], struct client_settings *set)
                 set->server_port = parse_port(optarg, base);
                 if (errno == ENOTRECOVERABLE)
                 {
-                    free_memory_manager(set->mm);
-                    exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
+                    return;
                 }
-                
                 break;
             }
             default:
             {
                 advise_usage(USAGE);
-                free_memory_manager(set->mm);
-                exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
+                return;
             }
         }
     }
     if (set->server_ip == NULL) /* If the server IP has not been input, exit. */
     {
         advise_usage(USAGE);
-        free_memory_manager(set->mm);
-        exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe) : no threads here
+        return;
     }
 }

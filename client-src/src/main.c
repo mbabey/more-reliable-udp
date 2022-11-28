@@ -14,7 +14,7 @@
 int main(int argc, char *argv[])
 {
     struct client_settings settings;
-    run_client(argc, argv, &settings);
+    run(argc, argv, &settings);
 
     close_client(&settings);
 

@@ -163,11 +163,16 @@ static void set_signal_handling(struct sigaction *sa);
  */
 static void signal_handler(int sig);
 
-void run_client(int argc, char *argv[], struct client_settings *set)
+void run(int argc, char *argv[], struct client_settings *set)
 {
+    struct sigaction sa;
+    
     init_def_state(argc, argv, set);
     
-    open_client_socket(set);
+    set_signal_handling(&sa);
+    
+    if (!errno)
+    { open_client_socket(set); }
     if (!errno)
     { cl_messaging(set); }
 }
@@ -221,13 +226,6 @@ void cl_connect(struct client_settings *set)
 
 void cl_messaging(struct client_settings *set) //
 {
-    struct sigaction sa;
-    
-    set_signal_handling(&sa);
-    
-    if (errno)
-    { return; /* set_signal_handling may have failed. */ }
-    
     running = 1;
     while (running)
     {
