@@ -161,14 +161,17 @@ static void signal_handler(int sig);
 
 void run(int argc, char *argv[], struct server_settings *set)
 {
+    struct sigaction sa;
+    
     init_def_state(argc, argv, set);
     
-    open_server(set);
+    set_signal_handling(&sa);
+    
+    if (!errno)
+    { open_server(set); }
     
     if (!errno)
     { sv_comm_core(set); }
-    
-    /* return to main. */
 }
 
 void open_server(struct server_settings *set)
@@ -202,12 +205,6 @@ void sv_comm_core(struct server_settings *set)
 {
     fd_set readfds;
     int    max_fd;
-    struct sigaction sa;
-    
-    set_signal_handling(&sa);
-    
-    if (errno)
-    { return; /* set_signal_handling may have failed. */ }
     
     running = 1;
     while (running)
