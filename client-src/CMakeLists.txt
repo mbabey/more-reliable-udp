@@ -124,14 +124,6 @@ doxygen_add_docs(doxygen-client
         ${CLIENT_HDR_LIST}
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         COMMENT "Generating Doxygen documentation for client")
-doxygen_add_docs(doxygen-server
-        ${SERVER_HDR_LIST}
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-        COMMENT "Generating Doxygen documentation for server")
-doxygen_add_docs(doxygen-proxy
-        ${PROXY_HDR_LIST}
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-        COMMENT "Generating Doxygen documentation for proxy")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CLANG_TIDY_CHECKS "*")

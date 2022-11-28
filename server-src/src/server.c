@@ -26,9 +26,9 @@ static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-cons
 /**
  * open_server
  * <p>
- * Create a socket, bind the IP specified in server_settings to the socket, then listen on the socket.
+ * Create a socket and bind the IP specified in server_settings to the socket.
  * </p>
- * @param set - server_settings *: pointer to the settings for this server
+ * @param set - the server settings
  */
 void open_server(struct server_settings *set);
 
@@ -128,6 +128,15 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
  */
 void sv_sendto(struct server_settings *set, struct conn_client *client);
 
+/**
+ * sv_disconnect
+ * <p>
+ * Disconnect a client from the server by responding to a client FIN message and removing them from the server
+ * connected client list.
+ * </p>
+ * @param set - the server settings
+ * @param client - the client to be disconnected
+ */
 void sv_disconnect(struct server_settings *set, struct conn_client *client);
 
 /**
@@ -273,19 +282,6 @@ void handle_receipt(struct server_settings *set, fd_set *readfds)
     }
 }
 
-void sv_disconnect(struct server_settings *set, struct conn_client *client)
-{
-    create_packet(client->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
-    sv_sendto(set, client);
-    if (!errno)
-    {
-        create_packet(client->s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
-        sv_sendto(set, client);
-    }
-    if (!errno)
-    { sv_recvfrom(set, client); } /* Wait for FIN/ACK */
-}
-
 void handle_broadcast(struct server_settings *set)
 {
     struct conn_client *curr_cli;
@@ -382,6 +378,37 @@ void sv_accept(struct server_settings *set)
         if (!errno)
         { sv_recvfrom(set, new_client); }
     }
+}
+
+void sv_sendto(struct server_settings *set, struct conn_client *client)
+{
+    uint8_t   *packet_buffer = NULL;
+    socklen_t size_addr_in;
+    size_t    packet_size;
+    
+    if ((packet_buffer = serialize_packet(client->s_packet)) == NULL)
+    {
+        running = 0;
+        return;
+    }
+    set->mm->mm_add(set->mm, packet_buffer);
+    
+    size_addr_in = sizeof(struct sockaddr_in);
+    packet_size  = HLEN_BYTES + client->s_packet->length;
+    
+    printf("\nSending packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
+           inet_ntoa(client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
+           ntohs(client->addr->sin_port),
+           check_flags(client->s_packet->flags),
+           client->s_packet->seq_num);
+    
+    if (sendto(client->c_fd, packet_buffer, packet_size, 0, (struct sockaddr *) client->addr, size_addr_in) == -1)
+    {
+        perror("\nMessage transmission to client failed: \n");
+        return;
+    }
+    
+    set->mm->mm_free(set->mm, packet_buffer);
 }
 
 void sv_recvfrom(struct server_settings *set, struct conn_client *client)
@@ -506,35 +533,17 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
     return true; /* Good message received: go ahead. */
 }
 
-void sv_sendto(struct server_settings *set, struct conn_client *client)
+void sv_disconnect(struct server_settings *set, struct conn_client *client)
 {
-    uint8_t   *packet_buffer = NULL;
-    socklen_t size_addr_in;
-    size_t    packet_size;
-    
-    if ((packet_buffer = serialize_packet(client->s_packet)) == NULL)
+    create_packet(client->s_packet, FLAG_FIN | FLAG_ACK, MAX_SEQ, 0, NULL);
+    sv_sendto(set, client);
+    if (!errno)
     {
-        running = 0;
-        return;
+        create_packet(client->s_packet, FLAG_FIN, MAX_SEQ, 0, NULL);
+        sv_sendto(set, client);
     }
-    set->mm->mm_add(set->mm, packet_buffer);
-    
-    size_addr_in = sizeof(struct sockaddr_in);
-    packet_size  = HLEN_BYTES + client->s_packet->length;
-    
-    printf("\nSending packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
-           inet_ntoa(client->addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
-           ntohs(client->addr->sin_port),
-           check_flags(client->s_packet->flags),
-           client->s_packet->seq_num);
-    
-    if (sendto(client->c_fd, packet_buffer, packet_size, 0, (struct sockaddr *) client->addr, size_addr_in) == -1)
-    {
-        perror("\nMessage transmission to client failed: \n");
-        return;
-    }
-    
-    set->mm->mm_free(set->mm, packet_buffer);
+    if (!errno)
+    { sv_recvfrom(set, client); } /* Wait for FIN/ACK */
 }
 
 void close_server(struct server_settings *set)
