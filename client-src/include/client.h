@@ -29,9 +29,9 @@
  */
 struct client_settings
 {
+    int       server_fd;
     char      *server_ip;
     in_port_t server_port;
-    int       server_fd;
     bool turn;
     
     struct Game           *game;

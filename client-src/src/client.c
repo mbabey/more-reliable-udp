@@ -1,4 +1,4 @@
-//#include "../include/Controller.h"
+#include "../include/Controller.h"
 #include "../include/Game.h"
 #include "../include/client-util.h"
 #include "../include/client.h"
@@ -40,7 +40,7 @@ static volatile sig_atomic_t running; // NOLINT(cppcoreguidelines-avoid-non-cons
 /**
  * open_client_socket
  * <p>
- * Set up the socket for the client. Set up the sockaddr struct for the server.
+ * Set up the socket for the client. Setup the server sockaddr_in struct.
  * </p>
  * @param set - the settings for the client
  */
@@ -103,22 +103,23 @@ void cl_sendto(struct client_settings *set);
  * server does not match the expected flags and sequence number, retransmit the last sent packet.
  * </p>
  * @param set - the client settings
- * @param s_packet - the packet to retransmit, if necessary
  * @param flag_set - the expected flags to be received
+ * @param num_flags - the number of different expected flags
+ * @param seq_num - the expected sequence number to be received
  */
 void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_flags, uint8_t seq_num);
 
 /**
- * cl_recv_err
+ * cl_recvfrom_err
  * <p>
  * Handle an error occurring while receiving a message. Returns 0 if the error is a timeout and the timeout limit has
  * not been reached, or returns -1 if another error type occurs.
  * </p>
  * @param set - the client settings
- * @param num_to - the number of timeouts that have occured
- * @return
+ * @param num_to - the number of timeouts that have occurred
+ * @return 0 if a timeout error occurs and timeout limit has not been reached, -1 otherwise
  */
-int cl_recv_err(struct client_settings *set, int *num_to);
+int cl_recvfrom_err(struct client_settings *set, int *num_to);
 
 /**
  * hande_recv_timeout
@@ -136,7 +137,7 @@ int handle_timeout(struct client_settings *set, int *num_to);
 /**
  * cl_process
  * <p>
- * Handle logic when receiving a PSH packet or a PSH/TRN packet.
+ * React to the received packet appropriately based on its flags and sequence number.
  * </p>
  * @param set - the settings for the client
  * @param packet_buffer - the received packet
@@ -203,8 +204,6 @@ void open_client_socket(struct client_settings *set)
 
 void cl_connect(struct client_settings *set)
 {
-    memset(set->s_packet, 0, sizeof(struct packet));
-    
     create_packet(set->s_packet, FLAG_SYN, MAX_SEQ, 0, NULL);
     cl_sendto(set);
     if (!errno)
@@ -257,15 +256,16 @@ void take_turn(struct client_settings *set)
     volatile bool    btn = false; /* Whether the button has been pressed. */
     uint8_t          input_buffer[GAME_SEND_BYTES];
     // input buffer: 1 B cursor, 1 B btn press
-//    cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
+    cursor = useController(set->game->cursor, &btn); // update the buffer, updating the button press
 
-//    input_buffer[0] = cursor;
-//    input_buffer[1] = (uint8_t) btn;
+    input_buffer[0] = cursor;
+    input_buffer[1] = (uint8_t) btn;
     
     /* Send input to server. */
     create_packet(set->s_packet, FLAG_PSH, (uint8_t) (set->r_packet->seq_num + 1),
                   GAME_SEND_BYTES, input_buffer);
-    cl_sendto(set);
+    if (!errno)
+    { cl_sendto(set); }
     
     if (!errno)
     {
@@ -341,7 +341,7 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
         if (recvfrom(set->server_fd, buffer, sizeof(buffer), 0,
                      (struct sockaddr *) set->server_addr, &size_addr_in) == -1)
         {
-            if (cl_recv_err(set, &num_to) == -1)
+            if (cl_recvfrom_err(set, &num_to) == -1)
             {
                 return;
             }
@@ -373,7 +373,7 @@ void cl_recvfrom(struct client_settings *set, uint8_t *flag_set, uint8_t num_fla
     cl_process(set, buffer); /* Once we have the correct packet, we will process it */
 }
 
-int cl_recv_err(struct client_settings *set, int *num_to)
+int cl_recvfrom_err(struct client_settings *set, int *num_to)
 {
     int ret_val;
     

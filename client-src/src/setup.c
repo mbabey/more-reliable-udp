@@ -1,4 +1,4 @@
-//#include "../include/Controller.h"
+#include "../include/Controller.h"
 #include "../include/Game.h"
 #include "../include/client-util.h"
 #include "../include/setup.h"
@@ -34,12 +34,11 @@ int allocate_defaults(struct client_settings *set);
 /**
  * parse_arguments
  * <p>
- * Parse the command line arguments and set values in the set appropriately.
- * Clean up and terminate the program if a user error occurs.
+ * Parse the command line arguments and set state parameters appropriately.
  * </p>
  * @param argc - the number of command line arguments
  * @param argv - the command line arguments
- * @param set - the set for the Client
+ * @param set - the client settings
  */
 void parse_arguments(int argc, char *argv[], struct client_settings *set);
 
@@ -57,16 +56,16 @@ void set_client_defaults(struct client_settings *set)
     set->server_port = DEFAULT_PORT;
     set->turn        = false;
     
-//    if ((controllerSetup()) == -1)
-//    {
-//        return; // NOLINT(concurrency-mt-unsafe) : no threads here
-//    }
+    if ((controllerSetup()) == -1)
+    {
+        return;
+    }
     
     errno = 0; /* errno set in controllerSetup, but it does not matter; clean it. */
     
     if (allocate_defaults(set) == -1)
     {
-        return; // NOLINT(concurrency-mt-unsafe) : no threads here
+        return;
     }
 }
 

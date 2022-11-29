@@ -68,8 +68,9 @@ struct packet
  * period separated numbers are larger than 255, and that the address is in the form
  * XXX.XXX.XXX.XXX
  * </p>
- * @param ip - char *: the string containing the IP address
- * @param base - int: base in which to interpret the IP address
+ * @param ip - the string containing the IP address
+ * @param base - base in which to interpret the IP address
+ * @return the valid IP address
  */
 char * check_ip(char *ip, uint8_t base);
 
@@ -87,8 +88,8 @@ char * check_ip(char *ip, uint8_t base);
  * WARNING: set_string dynamically allocates memory. Must free the pointer passed as the first parameter
  * </h3>
  * </p>
- * @param str - char**: pointer to the string to be set
- * @param new_str - char*: the new value for the string
+ * @param str - pointer to the string to be set
+ * @param new_str - the new value for the string
  */
 void set_string(char **str, const char *new_str);
 
@@ -98,21 +99,12 @@ void set_string(char **str, const char *new_str);
  * Check the user input port number to ensure it is within parameters. Namely, that it is not
  * larger than 65535.
  * </p>
- * @param buffer - char *: string containing the port number
- * @param base - int: base in which to interpret the port number
+ * @param buffer - string containing the port number
+ * @param base - base in which to interpret the port number
  * @return the port number, an in_port_t
  * @author D'Arcy Smith
  */
 in_port_t parse_port(const char *buffer, uint8_t base);
-
-/**
- * set_self_ip.
- * <p>
- * Get this host's IP address and attach it to the parameter char pointer pointer.
- * </p>
- * @param ip - char**: pointer to pointer to first char in IP address.
- */
-void set_self_ip(char **ip);
 
 /**
  * deserialize_packet
@@ -157,7 +149,6 @@ void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16
  */
 const char *check_flags(uint8_t flags);
 
-
 /**
  * fatal_errno.
  * <p>
@@ -170,7 +161,7 @@ const char *check_flags(uint8_t flags);
  * @param line - line on which error occurred
  * @param err_code - the error code of the error which occurred
  */
-void fatal_errno(const char *file, const char *func, const size_t line, int err_code);
+void fatal_errno(const char *file, const char *func, size_t line, int err_code);
 
 /**
  * advise_usage.

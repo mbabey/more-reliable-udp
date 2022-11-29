@@ -118,6 +118,7 @@ in_port_t parse_port(const char *buffer, uint8_t base)
     if (msg)
     {
         advise_usage(msg);
+        return 0;
     }
     
     port = (in_port_t) sl;

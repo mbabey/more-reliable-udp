@@ -14,7 +14,7 @@ set(CLIENT_INC_DIR ${PROJECT_SOURCE_DIR}/include)
 set(CLIENT_SRC_LIST
         ${CLIENT_SRC_DIR}/client.c
         ${CLIENT_SRC_DIR}/client-util.c
-#        ${CLIENT_SRC_DIR}/Controller.c # By Prabh Sokhey
+        ${CLIENT_SRC_DIR}/Controller.c # By Prabh Sokhey
         ${CLIENT_SRC_DIR}/Game.c # By Prabh Sokhey
         ${CLIENT_SRC_DIR}/main.c
         ${CLIENT_SRC_DIR}/manager.c
@@ -23,7 +23,7 @@ set(CLIENT_SRC_LIST
 set(CLIENT_HDR_LIST
         ${CLIENT_INC_DIR}/client.h
         ${CLIENT_INC_DIR}/client-util.h
-#        ${CLIENT_INC_DIR}/Controller.h # By Prabh Sokhey
+        ${CLIENT_INC_DIR}/Controller.h # By Prabh Sokhey
         ${CLIENT_INC_DIR}/Game.h # By Prabh Sokhey
         ${CLIENT_INC_DIR}/manager.h
         ${CLIENT_INC_DIR}/setup.h
@@ -152,8 +152,8 @@ add_executable(client ${CLIENT_SRC_LIST})
 add_dependencies(client doxygen-client)
 
 # wiringPi libraries : Comment out to allow build if libraries not installed.
-#target_include_directories(client PRIVATE include)
-#target_include_directories(client PRIVATE /usr/local/include)
-#target_link_directories(client PRIVATE /usr/local/lib)
-#find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
-#target_link_libraries(client ${WIRINGPI_LIBRARIES})
+target_include_directories(client PRIVATE include)
+target_include_directories(client PRIVATE /usr/local/include)
+target_link_directories(client PRIVATE /usr/local/lib)
+find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
+target_link_libraries(client ${WIRINGPI_LIBRARIES})
