@@ -56,14 +56,6 @@ void set_server_defaults(struct server_settings *set)
         return;
     }
     set->mm->mm_add(set->mm, set->game);
-
-    if ((set->timeout = (struct timeval *) s_calloc(1, sizeof(struct timeval),
-            __FILE__, __func__, __LINE__)) == NULL)
-    {
-        return;
-
-    }
-    set->mm->mm_add(set->mm, set->timeout);
 }
 
 void read_args(int argc, char *argv[], struct server_settings *set)

@@ -246,7 +246,7 @@ void cl_messaging(struct client_settings *set) //
         }
     }
     
-    if (!errno || errno == EINTR) // TODO: handle client disconnecting midgame
+    if (!errno || errno == EINTR)
     { cl_disconnect(set); }
 }
 
@@ -386,6 +386,7 @@ int cl_recvfrom_err(struct client_settings *set, int *num_to)
         }
         case EWOULDBLOCK: /* If the socket times out */
         {
+            errno = 0;
             ret_val = handle_timeout(set, num_to);
             break;
         }
