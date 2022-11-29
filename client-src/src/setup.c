@@ -75,9 +75,16 @@ int allocate_defaults(struct client_settings *set)
     {
         return -1;
     }
+    if ((set->timeout  = (struct timeval *) s_calloc(1, sizeof(struct timeval),
+                                                     __FILE__, __func__, __LINE__)) == NULL)
+    {
+        free_memory_manager(set->mm);
+        return -1;
+    }
     if ((set->s_packet = (struct packet *) s_calloc(1, sizeof(struct packet),
                                                     __FILE__, __func__, __LINE__)) == NULL)
     {
+        free(set->timeout);
         free_memory_manager(set->mm);
         return -1;
     }
@@ -85,6 +92,7 @@ int allocate_defaults(struct client_settings *set)
                                                     __FILE__, __func__, __LINE__)) == NULL)
     {
         free(set->s_packet);
+        free(set->timeout);
         free_memory_manager(set->mm);
         return -1;
     }
@@ -92,16 +100,19 @@ int allocate_defaults(struct client_settings *set)
     {
         free(set->r_packet);
         free(set->s_packet);
+        free(set->timeout);
         free_memory_manager(set->mm);
         return -1;
     }
     
     set->mm->mm_add(set->mm, set->game);
+    set->mm->mm_add(set->mm, set->timeout);
     set->mm->mm_add(set->mm, set->s_packet);
     set->mm->mm_add(set->mm, set->r_packet);
     
     return 0;
 }
+
 
 void parse_arguments(int argc, char *argv[], struct client_settings *set)
 {

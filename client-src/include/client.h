@@ -36,6 +36,7 @@ struct client_settings
     
     struct Game           *game;
     struct sockaddr_in    *server_addr;
+    struct timeval        *timeout;
     struct memory_manager *mm;
     
     struct packet *s_packet;
