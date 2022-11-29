@@ -97,17 +97,6 @@ void sv_accept(struct server_settings *set);
 void sv_recvfrom(struct server_settings *set, struct conn_client *client);
 
 /**
- * handle_timeout
- * <p>
- * When a timeout occurs,
- * </p>
- * @param set
- * @param num_to
- * @return
- */
-int handle_timeout(struct server_settings *set);
-
-/**
  * sv_process
  * <p>
  * Check the flags in the packet struct. Depending on the flags, respond accordingly.

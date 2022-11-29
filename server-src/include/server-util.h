@@ -52,16 +52,6 @@
 #define MAX_CLIENTS 2
 
 /**
- * The maximum timeout duration before it is assumed that a client has lost connection.
- */
-#define MAX_TIMEOUT 32 /* seconds */
-
-/**
- * The base receive timeout duration placed on a client socket.
- */
-#define BASE_TIMEOUT 2 /* seconds */
-
-/**
  * packet
  * <p>
  * Stores packet information.
@@ -104,7 +94,6 @@ struct server_settings
     uint8_t   num_conn_client;
     
     struct conn_client    *first_conn_client;
-    struct timeval        *timeout;
     struct memory_manager *mm;
     struct Game           *game;
 };
@@ -322,6 +311,5 @@ void fatal_errno(const char *file, const char *func, const size_t line, int err_
  * @param usage_message - the advice message
  */
 void advise_usage(const char *usage_message);
-
 
 #endif //RELIABLE_UDP_SERVER_UTIL_HPP
