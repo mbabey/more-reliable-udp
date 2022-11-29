@@ -327,8 +327,15 @@ void cl_recvfrom(struct client_settings *set, const uint8_t *flag_set, uint8_t n
 //            printf("%s, ", check_flags(flag_set[i]));
 //        }
 //        printf("\n");
-        
-        
+    
+        /* Update socket's timeout. */
+        if (setsockopt(set->server_fd, SOL_SOCKET, SO_RCVTIMEO,
+                       (const char *) set->timeout, sizeof(struct timeval)) == -1)
+        {
+            fatal_errno(__FILE__, __func__, __LINE__, errno);
+            running = 0;
+            return;
+        }
 
         memset(buffer, 0, sizeof(buffer));
         if (recvfrom(set->server_fd, buffer, sizeof(buffer), 0,
