@@ -9,7 +9,7 @@
 #include "../include/setup.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <sys/time.h>
+#include <sys/select.h>
 #include <unistd.h>
 
 /**
@@ -54,9 +54,20 @@ void sv_comm_core(struct server_settings *set);
 void handle_receipt(struct server_settings *set, fd_set *readfds);
 
 /**
+ * handle_unicast
+ * <p>
+ * Convert the game state information into a byte array. In reply to a client who has just sent the same packet twice,
+ * send the last sent packet with received packet seq num + 1 to the client.
+ * </p>
+ * @param set - the server settings
+ * @param client - the client to which the message will be sent
+ */
+void handle_unicast(struct server_settings *set, struct conn_client *client);
+
+/**
  * handle_broadcast
  * <p>
- * Convert the game state information into a single byte array. For each connected client, send a packet.
+ * Convert the game state information into a byte array. For each connected client, send a packet.
  * The packet will have flags PSH or PSH/TRN, depending on the game state. The difference is interpreted
  * by the client to indicate turn status.
  * </p>
@@ -199,7 +210,7 @@ void sv_comm_core(struct server_settings *set)
     while (running)
     {
         max_fd = set_readfds(set, &readfds);
-    
+        
         if (select(max_fd + 1, &readfds, NULL, NULL, NULL) == -1)
         {
             switch (errno)
@@ -217,17 +228,21 @@ void sv_comm_core(struct server_settings *set)
                 }
             }
         }
-    
+        
+        set->do_broadcast = true; /* May be set false if received message is a duplicate. */
+        
         handle_receipt(set, &readfds); /* Handle a received message on any of the active sockets. */
         
-        if (set->num_conn_client == MAX_CLIENTS && !errno) /* If MAX_CLIENTS clients are connected, the game is running. */
-        {                                                  /* Broadcast the game state to all connected clients. */
+        if (!errno &&
+            set->num_conn_client == MAX_CLIENTS &&         /* If MAX_CLIENTS connected, */
+            set->do_broadcast)                             /* If not retransmission, */
+        {                                                  /* Broadcast game state to all connected clients. */
             handle_broadcast(set);
         }
-    
-        if (set->num_conn_client < MAX_CLIENTS)
+        
+        if (set->num_conn_client < MAX_CLIENTS) /* If fewer than MAX_CLIENTS, reset game state. */
         {
-            set->game->updateGameState(set->game, NULL, NULL, NULL); /* Reset the game state. */
+            set->game->updateGameState(set->game, NULL, NULL, NULL);
         }
     }
 }
@@ -252,6 +267,10 @@ void handle_receipt(struct server_settings *set, fd_set *readfds)
                 if (!errno)
                 { sv_recvfrom(set, curr_cli); }
             }
+            if (!errno && !set->do_broadcast)
+            {
+                handle_unicast(set, curr_cli);
+            }
             if (curr_cli->r_packet->flags == FLAG_FIN)
             {
                 struct conn_client *disconn_client;
@@ -266,6 +285,32 @@ void handle_receipt(struct server_settings *set, fd_set *readfds)
             }
         }
     }
+}
+
+void handle_unicast(struct server_settings *set, struct conn_client *client)
+{
+    uint8_t *payload;
+    
+    if ((payload = assemble_game_payload(set->game)) == NULL)
+    {
+        running = 0;
+        return;
+    }
+    set->mm->mm_add(set->mm, payload);
+    
+    if (!errno)
+    {
+        create_packet(client->s_packet,
+                      client->s_packet->flags,
+                      (uint8_t) (client->r_packet->seq_num + 1),
+                      STD_PAYLOAD_BYTES, payload);
+    }
+    if (!errno)
+    { sv_sendto(set, client); }
+    if (!errno)
+    { sv_recvfrom(set, client); }
+    
+    set->mm->mm_free(set->mm, payload);
 }
 
 void handle_broadcast(struct server_settings *set)
@@ -445,6 +490,12 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
            check_flags(*packet_buffer),
            *(packet_buffer + 1));
     
+    if ((*packet_buffer == client->r_packet->flags) &&
+        (*(packet_buffer + 1) == client->r_packet->seq_num))
+    {
+        set->do_broadcast = false; // don't broadcast, just send packet as prescribed
+        return true; /* Retransmission received: go ahead. */
+    }
     if ((*packet_buffer == FLAG_ACK) &&
         (*(packet_buffer + 1) != client->s_packet->seq_num))
     {

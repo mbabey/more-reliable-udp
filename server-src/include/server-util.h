@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 
@@ -92,6 +93,7 @@ struct server_settings
     in_port_t server_port;
     int       server_fd;
     uint8_t   num_conn_client;
+    bool do_broadcast;
     
     struct conn_client    *first_conn_client;
     struct memory_manager *mm;
@@ -277,15 +279,6 @@ void create_packet(struct packet *packet, uint8_t flags, uint8_t seq_num, uint16
  * @return a string representation of the flags
  */
 const char *check_flags(uint8_t flags);
-
-/**
- * modify_timeout
- * <p>
- * Change the timeout duration based on the number of timeouts that have occurred.
- * </p>
- * @return
- */
-uint8_t modify_timeout(uint8_t timeout_count);
 
 /**
  * fatal_errno.
