@@ -287,10 +287,8 @@ void handle_receipt(struct server_settings *set, fd_set *readfds)
     }
 }
 
-static int u_count = 0;
 void handle_unicast(struct server_settings *set, struct conn_client *client)
 {
-    printf("\n--- Unicast %d ---\n", ++u_count);
     uint8_t *payload;
     
     if ((payload = assemble_game_payload(set->game)) == NULL)
@@ -313,13 +311,10 @@ void handle_unicast(struct server_settings *set, struct conn_client *client)
     { sv_recvfrom(set, client); }
     
     set->mm->mm_free(set->mm, payload);
-    printf("\n--- End unicast %d ---\n", u_count);
 }
 
-static int b_count = 0;
 void handle_broadcast(struct server_settings *set)
 {
-    printf("\n--- Broadcast %d ---\n", ++b_count);
     struct conn_client *curr_cli;
     uint8_t            *payload;
     
@@ -349,7 +344,6 @@ void handle_broadcast(struct server_settings *set)
     }
     
     set->mm->mm_free(set->mm, payload);
-    printf("\n--- End broadcast %d ---\n", b_count);
 }
 
 uint8_t *assemble_game_payload(struct Game *game)

@@ -298,12 +298,6 @@ void cl_sendto(struct client_settings *set)
         return;
     }
     
-//    printf("\nSending packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
-//           inet_ntoa(set->server_addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
-//           ntohs(set->server_addr->sin_port),
-//           check_flags(set->s_packet->flags),
-//           set->s_packet->seq_num);
-    
     set->mm->mm_free(set->mm, buffer);
 }
 
@@ -321,13 +315,6 @@ void cl_recvfrom(struct client_settings *set, const uint8_t *flag_set, uint8_t n
     num_to = 0;
     do
     {
-//        printf("\nAwaiting packet with flags: ");
-//        for (uint8_t i = 0; i < num_flags; ++i)
-//        {
-//            printf("%s, ", check_flags(flag_set[i]));
-//        }
-//        printf("\n");
-    
         /* Update socket's timeout. */
         if (setsockopt(set->server_fd, SOL_SOCKET, SO_RCVTIMEO,
                        (const char *) set->timeout, sizeof(struct timeval)) == -1)
@@ -426,18 +413,12 @@ int handle_timeout(struct client_settings *set, int *num_to)
         return -1;
     }
 
-//    printf("\nTimeout occurred. Next timeout in %ld seconds.\n", set->timeout->tv_sec);
+    printf("\nTimeout occurred. Next timeout in %ld seconds.\n", set->timeout->tv_sec);
     return 0;
 }
 
 void cl_process(struct client_settings *set, const uint8_t *packet_buffer)
 {
-//    printf("\nReceived packet:\n\tIP: %s\n\tPort: %u\n\tFlags: %s\n\tSequence Number: %d\n",
-//           inet_ntoa(set->server_addr->sin_addr), // NOLINT(concurrency-mt-unsafe) : no threads here
-//           ntohs(set->server_addr->sin_port),
-//           check_flags(*packet_buffer),
-//           *(packet_buffer + 1));
-    
     if (*packet_buffer == FLAG_ACK || *packet_buffer & FLAG_FIN)
     {
         return;
