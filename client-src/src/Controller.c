@@ -49,12 +49,12 @@
 // Initial set up for wiring.
 int controllerSetup(void){
 
-    if(wiringPiSetup() == -1){ //when initialize wiring failed,print messageto screen
+    if(wiringPiSetup() == -1){ //when initialize wiring failed,print message to screen
         printf("setup wiringPi failed !");
         return -1;
     }
 
-    //Setting modes for the analog stick.
+    //Setting modes for the analog stick, provided by SunFounder & WiringPi.
     pinMode(BtnPin,  INPUT);
     pullUpDnControl(BtnPin, PUD_UP);
     pinMode(ADC_CS,  OUTPUT);
@@ -73,6 +73,8 @@ uchar get_ADC_Result(uint channel)
     uchar dat1=0, dat2=0;
     int sel = channel > 1 & 1;
     int odd = channel & 1;
+
+    // Reading for the analog stick, provided by SunFounder & WiringPi.
     pinMode(ADC_DIO, OUTPUT);
     digitalWrite(ADC_CS, 0);
     // Start bit
@@ -113,6 +115,7 @@ uchar get_ADC_Result(uint channel)
 }
 
 void lightSwitch(bool state) {
+    // Change output on light, digitalWrite() provided by SunFounder & WiringPi.
     if(state)
         digitalWrite(LIGHT_TURN, LOW);
 
@@ -154,9 +157,11 @@ int adjustVertical(int joystickY, int currentCursor) {
     int up = ANALOG_V_LOWER_BOUND;
     int down = ANALOG_V_UPPER_BOUND;
 
+    // Adjusting for moving up a row and insuring wont go out of bounds of game array.
     if(joystickY <= up && currentCursor - ROW_SHIFT >= GRID_BOUNDARY_TOP_LEFT)
     { return currentCursor - ROW_SHIFT; }
 
+    // Adjusting for moving down a row and insuring wont go out of bounds of game array.
     if(joystickY >= down && currentCursor + ROW_SHIFT <= GRID_BOUNDARY_BOTTOM_RIGHT)
     { return currentCursor + ROW_SHIFT; }
     
@@ -167,9 +172,11 @@ int adjustHorizontal(int joystickX, int currentCursor) {
     int left = ANALOG_V_UPPER_BOUND;
     int right = ANALOG_V_LOWER_BOUND;
 
+    // Adjusting for moving to the left column and insuring wont go out of bound of game array.
     if(joystickX >= left && currentCursor - COL_SHIFT >= GRID_BOUNDARY_TOP_LEFT && currentCursor != GRID_BOUNDARY_MID_LEFT && currentCursor != GRID_BOUNDARY_BOTTOM_LEFT)
     { return currentCursor - COL_SHIFT; }
-    
+
+    // Adjusting for moving to the right column and insuring wont go out of bound of game array.
     if(joystickX <= right && currentCursor + COL_SHIFT <= GRID_BOUNDARY_BOTTOM_RIGHT && currentCursor != GRID_BOUNDARY_TOP_RIGHT && currentCursor != GRID_BOUNDARY_MID_RIGHT)
     { return currentCursor + COL_SHIFT; }
     
