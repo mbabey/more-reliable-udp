@@ -8,8 +8,8 @@
 #include "../include/server.h"
 #include "../include/setup.h"
 #include <arpa/inet.h>
-#include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 /**
@@ -229,7 +229,8 @@ void sv_comm_core(struct server_settings *set)
             }
         }
         
-        set->do_broadcast = true; /* May be set false if received message is a duplicate. */
+        set->do_broadcast = false; /* May be set true if received message is a PSH or ACK255. */
+        set->do_unicast = false; /* May be set true if received message is a duplicate. */
         
         handle_receipt(set, &readfds); /* Handle a received message on any of the active sockets. */
         
@@ -267,9 +268,10 @@ void handle_receipt(struct server_settings *set, fd_set *readfds)
                 if (!errno)
                 { sv_recvfrom(set, curr_cli); }
             }
-            if (!errno && !set->do_broadcast)
+            if (!errno && !set->do_broadcast && set->do_unicast)
             {
                 handle_unicast(set, curr_cli);
+                set->do_unicast = false;
             }
             if (curr_cli->r_packet->flags == FLAG_FIN)
             {
@@ -287,9 +289,13 @@ void handle_receipt(struct server_settings *set, fd_set *readfds)
     }
 }
 
+static int u_count = 0;
 void handle_unicast(struct server_settings *set, struct conn_client *client)
 {
+    printf("\n--- Unicast %d ---\n", ++u_count);
     uint8_t *payload;
+    
+    
     
     if ((payload = assemble_game_payload(set->game)) == NULL)
     {
@@ -311,10 +317,16 @@ void handle_unicast(struct server_settings *set, struct conn_client *client)
     { sv_recvfrom(set, client); }
     
     set->mm->mm_free(set->mm, payload);
+    
+    printf("\n--- End unicast %d ---\n", u_count);
 }
 
+static int b_count = 0;
 void handle_broadcast(struct server_settings *set)
 {
+    
+    printf("\n--- Broadcast %d ---\n", ++b_count);
+    
     struct conn_client *curr_cli;
     uint8_t            *payload;
     
@@ -344,6 +356,8 @@ void handle_broadcast(struct server_settings *set)
     }
     
     set->mm->mm_free(set->mm, payload);
+    
+    printf("\n--- End broadcast %d ---\n", b_count);
 }
 
 uint8_t *assemble_game_payload(struct Game *game)
@@ -493,7 +507,7 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
     if ((*packet_buffer == client->r_packet->flags) &&
         (*(packet_buffer + 1) == client->r_packet->seq_num))
     {
-        set->do_broadcast = false; // don't broadcast, just send packet as prescribed
+        set->do_unicast = true;
         return true; /* Retransmission received: go ahead. */
     }
     if ((*packet_buffer == FLAG_ACK) &&
@@ -528,6 +542,12 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
         {
             set->game->updateBoard(set->game);
         }
+        
+        set->do_broadcast = true; /* Do a broadcast because the game state was just updated. */
+    }
+    if ((*packet_buffer == FLAG_ACK) && (*(packet_buffer + 1) == MAX_SEQ))
+    {
+        set->do_broadcast = true; /* Do a broadcast because the game has just started. */
     }
     
     set->mm->mm_free(set->mm, client->r_packet->payload);

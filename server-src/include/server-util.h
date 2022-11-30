@@ -94,6 +94,7 @@ struct server_settings
     int       server_fd;
     uint8_t   num_conn_client;
     bool do_broadcast;
+    bool do_unicast;
     
     struct conn_client    *first_conn_client;
     struct memory_manager *mm;
