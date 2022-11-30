@@ -266,7 +266,11 @@ struct conn_client *create_conn_client(struct server_settings *set)
     {
         struct conn_client *curr_node;
         
-        for (curr_node = set->first_conn_client; curr_node->next != NULL; curr_node = curr_node->next);
+        /* Iterate to the end of the list. */
+        for (curr_node = set->first_conn_client;
+             curr_node->next != NULL;
+             curr_node = curr_node->next)
+        {}
         
         curr_node->next = new_client;
     }
@@ -288,7 +292,9 @@ void remove_client(struct server_settings *set, struct conn_client *client)
         
         /* Iterate through the list until the disconnecting client is next in the list or until the end of the list. */
         for (curr_cli = set->first_conn_client;
-             curr_cli->next != client && curr_cli->next != NULL; curr_cli = curr_cli->next);
+             curr_cli->next != client && curr_cli->next != NULL;
+             curr_cli = curr_cli->next)
+        {}
         
         if (curr_cli->next == client) /* If the disconnecting client is in the list. */
         {
@@ -417,19 +423,17 @@ const char *check_flags(uint8_t flags)
     }
 }
 
-void fatal_errno(const char *file, const char *func, const size_t line,
-                 int err_code) // NOLINT(bugprone-easily-swappable-parameters)
+void fatal_errno(const char *file, const char *func, const size_t line, int err_code)
 {
     const char *msg;
     
-    msg = strerror(
-            err_code);                                                                  // NOLINT(concurrency-mt-unsafe)
-    fprintf(stderr, "Error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code, msg);  // NOLINT(cert-err33-c)
-    errno = ENOTRECOVERABLE;                                                                           // NOLINT(concurrency-mt-unsafe)
+    msg = strerror(err_code); // NOLINT(concurrency-mt-unsafe)
+    (void) fprintf(stderr, "Error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code, msg);
+    errno = ENOTRECOVERABLE;
 }
 
 void advise_usage(const char *usage_message)
 {
-    fprintf(stderr, "Usage: %s\n", usage_message); // NOLINT(cert-err33-c) : val not needed
+    (void) fprintf(stderr, "Usage: %s\n", usage_message);
     errno = ENOTRECOVERABLE;
 }
