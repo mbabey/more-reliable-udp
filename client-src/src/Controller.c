@@ -48,7 +48,7 @@
 /**
  * Eight.
  */
-#define _EIGHT 8
+#define EIGHT 8
 
 // Initial set up for wiring.
 int controllerSetup(void){
@@ -76,7 +76,7 @@ uchar get_ADC_Result(uint channel)
     uchar i;
     uchar dat1 = 0;
     uchar dat2 = 0;
-    int sel = (channel > 1) & 1; // NOLINT(hicpp-signed-bitwise) : WiringPi default
+    int sel = (channel > 1) & 1; // NOLINT(hicpp-signed-bitwise, bugprone-narrowing-conversion, cppcoreguidelines-narrowing-conversions) : WiringPi default
     int odd = channel & 1; // NOLINT(hicpp-signed-bitwise) : WiringPi default
 
     // Reading for the analog stick, provided by SunFounder & WiringPi.
@@ -101,14 +101,14 @@ uchar get_ADC_Result(uint channel)
     digitalWrite(ADC_DIO, 1);    delayMicroseconds(CLOCK_PERIOD);
     digitalWrite(ADC_CLK, 0);
     digitalWrite(ADC_DIO, 1);    delayMicroseconds(CLOCK_PERIOD);
-    for (i = 0; i < _EIGHT; i++)
+    for (i = 0; i < EIGHT; i++)
     {
         digitalWrite(ADC_CLK, 1);    delayMicroseconds(CLOCK_PERIOD);
         digitalWrite(ADC_CLK, 0);    delayMicroseconds(CLOCK_PERIOD);
         pinMode(ADC_DIO, INPUT);
-        dat1=dat1<<1 | digitalRead(ADC_DIO);
+        dat1=dat1<<1 | digitalRead(ADC_DIO); // NOLINT(hicpp-signed-bitwise) : WiringPi default
     }
-    for (i = 0; i < _EIGHT; i++)
+    for (i = 0; i < EIGHT; i++)
     {
         dat2 = dat2 | ((uchar) (digitalRead(ADC_DIO)) << i); // NOLINT(hicpp-signed-bitwise) : WiringPi default
         digitalWrite(ADC_CLK, 1);    delayMicroseconds(CLOCK_PERIOD);
@@ -165,11 +165,11 @@ int adjustVertical(int joystickY, int currentCursor) {
     int down = ANALOG_V_UPPER_BOUND;
 
     // Adjusting for moving up a row and insuring wont go out of bounds of game array.
-    if(joystickY <= up && currentCursor - ROW_SHIFT >= GRID_BOUNDARY_TOP_LEFT)
+    if(joystickY <= up && currentCursor - ROW_SHIFT >= GRID_BOUNDARY_TOP_LEFT) // NOLINT(-Wstrict-overflow) : overflow will not occur in value range
     { return currentCursor - ROW_SHIFT; }
 
     // Adjusting for moving down a row and insuring wont go out of bounds of game array.
-    if(joystickY >= down && currentCursor + ROW_SHIFT <= GRID_BOUNDARY_BOTTOM_RIGHT)
+    if(joystickY >= down && currentCursor + ROW_SHIFT <= GRID_BOUNDARY_BOTTOM_RIGHT) // NOLINT(-Wstrict-overflow) : overflow will not occur in value range
     { return currentCursor + ROW_SHIFT; }
     
     return currentCursor;
@@ -180,11 +180,11 @@ int adjustHorizontal(int joystickX, int currentCursor) {
     int right = ANALOG_V_LOWER_BOUND;
 
     // Adjusting for moving to the left column and insuring wont go out of bound of game array.
-    if(joystickX >= left && currentCursor - COL_SHIFT >= GRID_BOUNDARY_TOP_LEFT && currentCursor != GRID_BOUNDARY_MID_LEFT && currentCursor != GRID_BOUNDARY_BOTTOM_LEFT)
+    if(joystickX >= left && currentCursor - COL_SHIFT >= GRID_BOUNDARY_TOP_LEFT && currentCursor != GRID_BOUNDARY_MID_LEFT && currentCursor != GRID_BOUNDARY_BOTTOM_LEFT) // NOLINT(-Wstrict-overflow) : overflow will not occur in value range
     { return currentCursor - COL_SHIFT; }
 
     // Adjusting for moving to the right column and insuring wont go out of bound of game array.
-    if(joystickX <= right && currentCursor + COL_SHIFT <= GRID_BOUNDARY_BOTTOM_RIGHT && currentCursor != GRID_BOUNDARY_TOP_RIGHT && currentCursor != GRID_BOUNDARY_MID_RIGHT)
+    if(joystickX <= right && currentCursor + COL_SHIFT <= GRID_BOUNDARY_BOTTOM_RIGHT && currentCursor != GRID_BOUNDARY_TOP_RIGHT && currentCursor != GRID_BOUNDARY_MID_RIGHT) // NOLINT(-Wstrict-overflow) : overflow will not occur in value range
     { return currentCursor + COL_SHIFT; }
     
     return currentCursor;

@@ -554,7 +554,6 @@ bool validateMove(struct Game *currentGame)
 {
     int tempCurser = currentGame->cursor;
     
-    printf("Cell:%d character:%c\n", tempCurser, currentGame->trackGame[tempCurser]); // FOR TESTING DELETE LATER.
     return isspace(currentGame->trackGame[tempCurser]);
 }
 
