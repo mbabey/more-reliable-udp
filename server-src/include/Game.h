@@ -44,20 +44,4 @@ struct Game
  */
 struct Game *initializeGame(void);
 
-/**
- * Update the cursor position for the horizontal value.
- * @param currentGame Pointer to the current Game struct.
- * @param joystickY Joystic direction read in the Y direction.
- */
-void updateCursorHorizontal(struct Game* currentGame, int joystickY);
-
-/**
- * Update the cursor position for the vertical value.
- * @param currentGame Pointer to the current Game struct.
- * @param joystickX Joystick direction read in the X direction.
- */
-void updateCursorVertical(struct Game* currentGame, int joystickX);
-
-
-
 #endif //GAME_GAME_H
