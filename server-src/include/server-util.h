@@ -175,14 +175,11 @@ void set_self_ip(char **ip);
 /**
  * open_server_socket
  * <p>
- * Create and bind a new socket to the given IP address and port number. Passing 0 as the port will bind
- * the socket to an ephemeral port (random port number).
+ * Create a new socket for assigning to a newly connected client.
  * </p>
- * @param ip - the IP address to which the new socket shall be bound
- * @param port - the port number to which the new socket shall be bound
- * @return the file descriptor to the new socket
+ * @return the file descriptor to the new socket on success, -1 on failure
  */
-int open_server_socket(char *ip, in_port_t port);
+int open_server_socket(void);
 
 /**
  * set_readfds
@@ -219,19 +216,19 @@ struct conn_client *connect_client(struct server_settings *set, struct sockaddr_
 struct conn_client *create_conn_client(struct server_settings *set);
 
 /**
- * disconnect_client
+ * remove_client
  * <p>
- * Remove a client from the connected client list. Free the client's memory.
+ * Remove a client from the connected client list. Delete the client.
  * </p>
  * @param set - the server settings
- * @param client - the disconnecting client
+ * @param client - the client to be removed
  */
-void disconnect_client(struct server_settings *set, struct conn_client *client);
+void remove_client(struct server_settings *set, struct conn_client *client);
 
 /**
  * delete_conn_client
  * <p>
- * Free the memory associated with a client. Decrement the number of connected clients counter.
+ * Decrement the number of connected clients. Close the client socket. Free the memory associated with a client.
  * </p>
  * @param set - the server settings
  * @param client - the client to free

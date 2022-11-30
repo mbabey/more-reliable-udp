@@ -91,40 +91,38 @@ uint8_t *assemble_game_payload(struct Game *game);
  * Receive a message. If it is a SYN, connect the new client. Send a SYN/ACK back to the sender on that socket.
  * </p>
  * @param set - the server settings
- * @param s_packet - the packet struct to send
  */
 void sv_accept(struct server_settings *set);
 
 /**
  * sv_recvfrom.
  * <p>
- * Await a message from the connected client. If no message is received and a timeout occurs,
- * resend the last-sent packet. If a timeout occurs too many times, drop the connection.
+ * Await a message from the connected client. If no go ahead is received from processing the message, resend the last
+ * sent message and receive again.
  * </p>
  * @param set - the server settings
- * @param s_packet - the packet struct to send
- * @param r_packet - the packet struct to sv_recvfrom
+ * @param client - the client from which to receive the message
  */
 void sv_recvfrom(struct server_settings *set, struct conn_client *client);
 
 /**
  * sv_process
  * <p>
- * Check the flags in the packet struct. Depending on the flags, respond accordingly.
+ * Check the flags and sequence number of a message. Respond depending on the result.
  * </p>
  * @param set - the server settings
- * @param s_packet - the packet struct to send
- * @param r_packet - the packet struct to sv_recvfrom
+ * @param client - the client from which the message was received
+ * @param packet_buffer - the buffer containing the message
  */
 bool sv_process(struct server_settings *set, struct conn_client *client, const uint8_t *packet_buffer);
 
 /**
  * sv_sendto
  * <p>
- * Send the send packet to the client as a response.
+ * Send a send packet to a client.
  * </p>
  * @param set - the server settings
- * @param s_packet - the packet struct to send
+ * @param client - the client to which a packet will be sent
  */
 void sv_sendto(struct server_settings *set, struct conn_client *client);
 
@@ -289,13 +287,9 @@ void handle_receipt(struct server_settings *set, fd_set *readfds)
     }
 }
 
-static int u_count = 0;
 void handle_unicast(struct server_settings *set, struct conn_client *client)
 {
-    printf("\n--- Unicast %d ---\n", ++u_count);
     uint8_t *payload;
-    
-    
     
     if ((payload = assemble_game_payload(set->game)) == NULL)
     {
@@ -317,16 +311,10 @@ void handle_unicast(struct server_settings *set, struct conn_client *client)
     { sv_recvfrom(set, client); }
     
     set->mm->mm_free(set->mm, payload);
-    
-    printf("\n--- End unicast %d ---\n", u_count);
 }
 
-static int b_count = 0;
 void handle_broadcast(struct server_settings *set)
 {
-    
-    printf("\n--- Broadcast %d ---\n", ++b_count);
-    
     struct conn_client *curr_cli;
     uint8_t            *payload;
     
@@ -356,8 +344,6 @@ void handle_broadcast(struct server_settings *set)
     }
     
     set->mm->mm_free(set->mm, payload);
-    
-    printf("\n--- End broadcast %d ---\n", b_count);
 }
 
 uint8_t *assemble_game_payload(struct Game *game)
@@ -517,14 +503,13 @@ bool sv_process(struct server_settings *set, struct conn_client *client, const u
     }
     if (*packet_buffer == (FLAG_FIN | FLAG_ACK))
     {
-        disconnect_client(set, client);
+        remove_client(set, client);
         return true; /* Client disconnected: go ahead. */
     }
     
     deserialize_packet(client->r_packet, packet_buffer); /* Deserialize the packet to store its contents. */
     if (errno == ENOMEM)
     {
-        printf("broken\n");
         running = 0;
         return true; /* Deserializing failure: go ahead. */
     }

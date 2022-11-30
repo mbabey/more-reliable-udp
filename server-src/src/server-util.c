@@ -170,10 +170,9 @@ void set_self_ip(char **ip)
     freeaddrinfo(results);
 }
 
-int open_server_socket(char *ip, in_port_t port)
+int open_server_socket(void)
 {
-    struct sockaddr_in addr;
-    int                fd;
+    int fd;
     
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) // NOLINT(android-cloexec-socket) : SOCK_CLOEXEC dne
     {
@@ -181,14 +180,6 @@ int open_server_socket(char *ip, in_port_t port)
         return -1;
     }
     
-    addr.sin_family           = AF_INET;
-    addr.sin_port             = htons(port);
-    if ((addr.sin_addr.s_addr = inet_addr(ip)) == (in_addr_t) -1)
-    {
-        fatal_errno(__FILE__, __func__, __LINE__, errno);
-        return -1;
-    }
-
     return fd;
 }
 
@@ -227,7 +218,7 @@ struct conn_client *connect_client(struct server_settings *set, struct sockaddr_
     *new_client->addr = *from_addr; /* Copy the sender's information into the client struct. */
     
     /* Create a new socket with an ephemeral port. */
-    if ((new_client->c_fd = open_server_socket(set->server_ip, 0)) == -1)
+    if ((new_client->c_fd = open_server_socket()) == -1)
     {
         return NULL; // errno set
     }
@@ -283,7 +274,7 @@ struct conn_client *create_conn_client(struct server_settings *set)
     return new_client;
 }
 
-void disconnect_client(struct server_settings *set, struct conn_client *client)
+void remove_client(struct server_settings *set, struct conn_client *client)
 {
     /* If the client being disconnected is the first connected client,
      * set the first connected client to the second connected client. */
@@ -426,11 +417,13 @@ const char *check_flags(uint8_t flags)
     }
 }
 
-void fatal_errno(const char *file, const char *func, const size_t line, int err_code) // NOLINT(bugprone-easily-swappable-parameters)
+void fatal_errno(const char *file, const char *func, const size_t line,
+                 int err_code) // NOLINT(bugprone-easily-swappable-parameters)
 {
     const char *msg;
     
-    msg = strerror(err_code);                                                                  // NOLINT(concurrency-mt-unsafe)
+    msg = strerror(
+            err_code);                                                                  // NOLINT(concurrency-mt-unsafe)
     fprintf(stderr, "Error (%s @ %s:%zu %d) - %s\n", file, func, line, err_code, msg);  // NOLINT(cert-err33-c)
     errno = ENOTRECOVERABLE;                                                                           // NOLINT(concurrency-mt-unsafe)
 }
