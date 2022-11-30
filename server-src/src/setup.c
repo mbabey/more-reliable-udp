@@ -17,8 +17,7 @@
 /**
  * set_server_defaults
  * <p>
- * Zero the memory in server_settings. Set the default port, initialize the memory manager, and setup the timeout
- * struct.
+ * Zero the memory in server_settings. Set the default port and initialize the memory manager.
  * </p>
  * @param set - server_settings *: pointer to the settings for this server
  */
@@ -38,7 +37,8 @@ void read_args(int argc, char *argv[], struct server_settings *set);
 void init_def_state(int argc, char *argv[], struct server_settings *set)
 {
     set_server_defaults(set);
-    read_args(argc, argv, set);
+    if (!errno)
+    { read_args(argc, argv, set); }
 }
 
 void set_server_defaults(struct server_settings *set)

@@ -89,13 +89,13 @@ struct packet
  */
 struct server_settings
 {
+    int       server_fd;
     char      *server_ip;
     in_port_t server_port;
-    int       server_fd;
-    uint8_t   num_conn_client;
     bool do_broadcast;
     bool do_unicast;
     
+    uint8_t               num_conn_client;
     struct conn_client    *first_conn_client;
     struct memory_manager *mm;
     struct Game           *game;

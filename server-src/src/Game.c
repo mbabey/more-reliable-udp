@@ -215,7 +215,7 @@ void displayBoardEnd(struct Game* game) {
     // ROW 1
     if(game->winCondition == TOP_ROW) {
         printf("     |     |     \n");
-        printf("  %s%c  |  %c  |  %c%s \n",GREEN, game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT], TEXT_DEF);
+        printf("  %s%c%s  |  %s%c%s  |  %s%c%s \n",GREEN, game->trackGame[TOP_LEFT],TEXT_DEF, GREEN,game->trackGame[TOP_MIDDLE],TEXT_DEF,GREEN, game->trackGame[TOP_RIGHT], TEXT_DEF);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
@@ -231,7 +231,7 @@ void displayBoardEnd(struct Game* game) {
         printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %s%c  |  %c  |  %c%s \n", GREEN, game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT], TEXT_DEF);
+        printf("  %s%c%s  |  %s%c%s  |  %s%c%s \n", GREEN, game->trackGame[MIDDLE_LEFT],TEXT_DEF,GREEN, game->trackGame[MIDDLE],TEXT_DEF,GREEN, game->trackGame[MIDDLE_RIGHT], TEXT_DEF);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT]);
@@ -247,7 +247,7 @@ void displayBoardEnd(struct Game* game) {
         printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
-        printf("  %s%c  |  %c  |  %c%s \n", GREEN, game->trackGame[BOTTOM_LEFT], game->trackGame[BOTTOM_MIDDLE], game->trackGame[BOTTOM_RIGHT], TEXT_DEF);
+        printf("  %s%c%s  |  %s%c%s  |  %s%c%s \n", GREEN, game->trackGame[BOTTOM_LEFT],TEXT_DEF,GREEN, game->trackGame[BOTTOM_MIDDLE],TEXT_DEF,GREEN, game->trackGame[BOTTOM_RIGHT], TEXT_DEF);
         printf("     |     |     \n\n");
     }
 
@@ -306,7 +306,7 @@ void displayBoardEnd(struct Game* game) {
     // COLUMN 3
     else if(game->winCondition == RIGHT_COLUMN) {
         printf("     |     |     \n");
-        printf("  %c   |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], GREEN,game->trackGame[TOP_RIGHT],TEXT_DEF);
+        printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], GREEN,game->trackGame[TOP_RIGHT],TEXT_DEF);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %s%c%s \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], GREEN,game->trackGame[MIDDLE_RIGHT],TEXT_DEF);
@@ -320,7 +320,7 @@ void displayBoardEnd(struct Game* game) {
     else {
         printf("%s", RED);
         printf("     |     |     \n");
-        printf("  %c   |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
+        printf("  %c  |  %c  |  %c \n", game->trackGame[TOP_LEFT], game->trackGame[TOP_MIDDLE], game->trackGame[TOP_RIGHT]);
         printf("_____|_____|_____\n");
         printf("     |     |     \n");
         printf("  %c  |  %c  |  %c \n", game->trackGame[MIDDLE_LEFT], game->trackGame[MIDDLE], game->trackGame[MIDDLE_RIGHT]);
@@ -441,9 +441,7 @@ void displayBoardWithCursor(struct Game *game)
     displayDetails(game);
 }
 
-//TODO: USE ASCII TO MAKE TIE/WIN SPLASH BIGGER.
 void displayDetails(struct Game* game) {
-
     // Primary status is to check a win.
     if(isGameOver(game)) {
         
@@ -543,7 +541,7 @@ bool isGameOver(struct Game* game) {
 
     // Check if tie and game should end.
     if(isGridFull(game)){
-        game->turn = ' ';
+        game->turn = ' ';  // No next turn and game should end.
         game->winCondition = TIE; /* Not really a tie. */
         return true;
     }
