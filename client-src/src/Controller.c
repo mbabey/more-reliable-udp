@@ -45,6 +45,10 @@
 #define GRID_BOUNDARY_BOTTOM_LEFT 6
 #define GRID_BOUNDARY_BOTTOM_RIGHT 8
 
+/**
+ * Eight.
+ */
+#define _EIGHT 8
 
 // Initial set up for wiring.
 int controllerSetup(void){
@@ -70,57 +74,60 @@ int controllerSetup(void){
 uchar get_ADC_Result(uint channel)
 {
     uchar i;
-    uchar dat1=0, dat2=0;
-    int sel = channel > 1 & 1;
-    int odd = channel & 1;
+    uchar dat1 = 0;
+    uchar dat2 = 0;
+    int sel = (channel > 1) & 1; // NOLINT(hicpp-signed-bitwise) : WiringPi default
+    int odd = channel & 1; // NOLINT(hicpp-signed-bitwise) : WiringPi default
 
     // Reading for the analog stick, provided by SunFounder & WiringPi.
     pinMode(ADC_DIO, OUTPUT);
     digitalWrite(ADC_CS, 0);
     // Start bit
-    digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,1);    delayMicroseconds(CLOCK_PERIOD);
-    digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
-//Single End mode
-    digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,1);    delayMicroseconds(CLOCK_PERIOD);
-    digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK, 0);
+    digitalWrite(ADC_DIO, 1);    delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK, 1);    delayMicroseconds(CLOCK_PERIOD);
+    //Single End mode
+    digitalWrite(ADC_CLK, 0);
+    digitalWrite(ADC_DIO, 1);    delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK, 1);    delayMicroseconds(CLOCK_PERIOD);
     // ODD
-    digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,odd);  delayMicroseconds(CLOCK_PERIOD);
-    digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK, 0);
+    digitalWrite(ADC_DIO, odd);  delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK, 1);    delayMicroseconds(CLOCK_PERIOD);
     //Select
-    digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,sel);    delayMicroseconds(CLOCK_PERIOD);
-    digitalWrite(ADC_CLK,1);
-    digitalWrite(ADC_DIO,1);    delayMicroseconds(CLOCK_PERIOD);
-    digitalWrite(ADC_CLK,0);
-    digitalWrite(ADC_DIO,1);    delayMicroseconds(CLOCK_PERIOD);
-    for(i=0;i<8;i++)
+    digitalWrite(ADC_CLK, 0);
+    digitalWrite(ADC_DIO, sel);    delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK, 1);
+    digitalWrite(ADC_DIO, 1);    delayMicroseconds(CLOCK_PERIOD);
+    digitalWrite(ADC_CLK, 0);
+    digitalWrite(ADC_DIO, 1);    delayMicroseconds(CLOCK_PERIOD);
+    for (i = 0; i < _EIGHT; i++)
     {
-        digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
-        digitalWrite(ADC_CLK,0);    delayMicroseconds(CLOCK_PERIOD);
+        digitalWrite(ADC_CLK, 1);    delayMicroseconds(CLOCK_PERIOD);
+        digitalWrite(ADC_CLK, 0);    delayMicroseconds(CLOCK_PERIOD);
         pinMode(ADC_DIO, INPUT);
         dat1=dat1<<1 | digitalRead(ADC_DIO);
     }
-    for(i=0;i<8;i++)
+    for (i = 0; i < _EIGHT; i++)
     {
-        dat2 = dat2 | ((uchar)(digitalRead(ADC_DIO))<<i);
-        digitalWrite(ADC_CLK,1);    delayMicroseconds(CLOCK_PERIOD);
-        digitalWrite(ADC_CLK,0);    delayMicroseconds(CLOCK_PERIOD);
+        dat2 = dat2 | ((uchar) (digitalRead(ADC_DIO)) << i); // NOLINT(hicpp-signed-bitwise) : WiringPi default
+        digitalWrite(ADC_CLK, 1);    delayMicroseconds(CLOCK_PERIOD);
+        digitalWrite(ADC_CLK, 0);    delayMicroseconds(CLOCK_PERIOD);
     }
-    digitalWrite(ADC_CS,1);
+    digitalWrite(ADC_CS, 1);
     pinMode(ADC_DIO, OUTPUT);
-    return(dat1==dat2) ? dat1 : 0;
+    return (dat1 == dat2) ? dat1 : 0;
 }
 
 void lightSwitch(bool state) {
     // Change output on light, digitalWrite() provided by SunFounder & WiringPi.
-    if(state)
+    if (state)
+    {
         digitalWrite(LIGHT_TURN, LOW);
-
-    else
+    } else
+    {
         digitalWrite(LIGHT_TURN, HIGH);
+    }
 }
 
 
