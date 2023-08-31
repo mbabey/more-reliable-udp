@@ -1,3 +1,3 @@
-# more-reliable-udp
+### About the Project
 
-A reliable UDP game server running Prabh Sokhey's Tick-Tack-Toe: https://github.com/PSokhey/tick-tack-toe-pi 
+more-reliable-udp is the second iteration of a project called reliable-udp. UDP is a connectionless, fire-and-forget network layer protocol. This project builds a connection-oriented, reliable application layer protocol on top of UDP for a multiplayer Tick-Tack-Toe game server. The Tick-Tack-Toe game, developed by classmate and friend Prabh Sokhey, uses two breadboard controllers connected to Raspberry Pis (see Prabh's Tick-Tack-Toe here: https://github.com/PSokhey/tick-tack-toe-pi). During development, Prabh and I spent extensive time designing the project so integration of our code would be smooth; we were successful and integration went very well.
